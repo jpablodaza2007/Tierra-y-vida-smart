@@ -1,0 +1,63 @@
+# ==========================
+# DJANGO / PYTHON
+# ==========================
+
+Backend/venv/
+Backend/.venv/
+Backend/env/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Base de datos local
+Backend/db.sqlite3
+Backend/db.sqlite3-journal
+
+# Variables de entorno
+.env
+.env.*
+
+# Logs
+*.log
+
+# Archivos estáticos generados
+Backend/staticfiles/
+
+# Archivos subidos por usuarios
+Backend/media/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ==========================
+# ANGULAR
+# ==========================
+
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.angular/
+Frontend/coverage/
+
+# ==========================
+# IDEs
+# ==========================
+
+.vscode/
+.idea/
+
+# ==========================
+# SISTEMA OPERATIVO
+# ==========================
+
+.DS_Store
+Thumbs.db
+
+# ==========================
+# TEMPORALES
+# ==========================
+
+*.tmp
+*.swp
