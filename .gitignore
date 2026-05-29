@@ -32,6 +32,14 @@ Backend/media/
 htmlcov/
 .pytest_cache/
 
+# ==========================
+# ANGULAR
+# ==========================
+
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.angular/
+Frontend/coverage/
 
 # ==========================
 # IDEs
