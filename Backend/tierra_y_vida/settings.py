@@ -72,10 +72,15 @@ WSGI_APPLICATION = 'tierra_y_vida.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'tierra_y_vida_smart',          
+        'USER': 'postgres',                 
+        'PASSWORD': '1234',    
+        'HOST': 'localhost',                
+        'PORT': '5432',                     
     }
 }
 
