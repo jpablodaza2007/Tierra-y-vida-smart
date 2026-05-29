@@ -16,7 +16,6 @@ Backend/db.sqlite3-journal
 
 # Variables de entorno
 .env
-.env.*
 
 # Logs
 *.log
