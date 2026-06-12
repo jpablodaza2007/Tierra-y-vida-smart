@@ -34,7 +34,7 @@ htmlcov/
 # ==========================
 # ANGULAR
 # ==========================
-
+node_modules/
 Frontend/node_modules/
 Frontend/dist/
 Frontend/.angular/
