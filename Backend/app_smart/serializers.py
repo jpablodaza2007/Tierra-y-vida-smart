@@ -46,7 +46,11 @@ class LoginSerializer(TokenObtainPairSerializer):
                 code='email_not_verified',
             )
 
-        datos = super().validate(attrs)
+        try:
+            datos = super().validate(attrs)
+        except AuthenticationFailed:
+            raise AuthenticationFailed('Usuario o contraseña incorrectos.')
+
         perfil = Usuario.objects.filter(correo__iexact=self.user.email).first()
         datos.update({
             'nombre': perfil.nombre if perfil else self.user.get_full_name() or self.user.username,

@@ -18,11 +18,9 @@
     </button>
   </form>
 
-  @if (mensajeError) {
-    <p role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
-      {{ mensajeError }}
-    </p>
-  }
+  <p *ngIf="mensajeError" role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
+    {{ mensajeError }}
+  </p>
 
   <div style="text-align: center; margin: 20px 0; color: #95a5a6; position: relative;">
     <span style="background: white; padding: 0 10px; position: relative; z-index: 1;">O continúa con</span>
@@ -30,16 +28,17 @@
   </div>
 
   <div style="display: flex; justify-content: center;">
-    @if (enviandoGoogle) {
+    <ng-container *ngIf="enviandoGoogle; else googleButton">
       <span>Validando cuenta de Google...</span>
-    } @else {
+    </ng-container>
+    <ng-template #googleButton>
       <asl-google-signin-button
         type="standard"
         size="large"
         text="continue_with"
         theme="outline">
       </asl-google-signin-button>
-    }
+    </ng-template>
   </div>
 
   <p style="text-align: center; margin-top: 20px; font-size: 14px;">

@@ -68,11 +68,18 @@ export class LoginComponent implements OnInit {
           this.authService.irAlPanel();
         },
         error: (err) => {
-          this.mensajeError = err.name === 'TimeoutError'
+          const textoError = typeof err.error === 'string'
+            ? err.error
+            : err.error?.detail || err.error?.error || err.error?.message;
+          const mensaje = err.name === 'TimeoutError'
             ? 'El servidor tardó demasiado en responder.'
             : err.status === 0
             ? 'No se pudo conectar con el servidor.'
-            : (err.error?.detail || 'Usuario o contraseña incorrectos.');
+            : textoError?.includes('No active account found with the given credentials')
+              ? 'Usuario o contraseña incorrectos.'
+              : textoError || 'Usuario o contraseña incorrectos.';
+          this.mensajeError = mensaje;
+          alert(mensaje);
         }
       });
   }
