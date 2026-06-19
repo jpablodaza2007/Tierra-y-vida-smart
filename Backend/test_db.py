@@ -1,20 +1,26 @@
-import psycopg2
+import os
 
-print("Probando conexión a la base de datos de Tierra Y Vida Smart...")
+import django
+from django.db import connection
 
-try:
-    conexion = psycopg2.connect(
-        dbname="tierra_y_vida_smart",
-        user="postgres",
-        password="1234",
-        host="localhost",
-        port="5432"
-    )
-    
-    print("✅ ¡Éxito! Conexión establecida correctamente con PostgreSQL.")
-    
-    conexion.close()
 
-except Exception as error:
-    print("❌ Hubo un error al conectar. El mensaje real de PostgreSQL es:")
-    print(repr(error))
+def comprobar_conexion() -> None:
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tierra_y_vida.settings')
+    django.setup()
+
+    print('Probando conexión a la base de datos de Tierra y Vida Smart...')
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+
+        print('Conexión establecida correctamente con PostgreSQL.')
+    except Exception as error:
+        print('No fue posible conectar con PostgreSQL:')
+        print(repr(error))
+        raise
+
+
+if __name__ == '__main__':
+    comprobar_conexion()

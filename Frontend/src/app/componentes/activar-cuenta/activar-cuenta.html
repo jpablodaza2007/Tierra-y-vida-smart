@@ -1,0 +1,13 @@
+<main style="max-width: 460px; margin: 70px auto; padding: 28px; text-align: center; border: 1px solid #ddd; border-radius: 10px; font-family: sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+  <h2>{{ procesando ? 'Activando cuenta' : (activada ? 'Cuenta activada' : 'No fue posible activar') }}</h2>
+
+  <p [style.color]="activada ? '#218c53' : (procesando ? '#555' : '#c0392b')">
+    {{ mensaje }}
+  </p>
+
+  @if (!procesando) {
+    <a routerLink="/login" style="display: inline-block; margin-top: 14px; padding: 10px 18px; color: white; background: #3498db; border-radius: 5px; text-decoration: none;">
+      Ir a iniciar sesión
+    </a>
+  }
+</main>

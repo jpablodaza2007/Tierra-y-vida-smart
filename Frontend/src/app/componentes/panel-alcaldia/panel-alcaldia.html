@@ -1,0 +1,68 @@
+<div class="dashboard">
+  <header class="dashboard-header">
+    <div>
+      <span class="eyebrow">Alcaldía</span>
+      <h1>Gestión logística</h1>
+      <p>Asigna residuos pendientes a los campesinos disponibles.</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="auth.cerrarSesion()">Cerrar sesión</button>
+  </header>
+
+  <section class="panel">
+    <h2>{{ editandoId ? 'Editar asignación' : 'Nueva asignación' }}</h2>
+    <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
+      <label>Residuo
+        <select [(ngModel)]="formulario.id_residuo_id" name="residuo" required>
+          <option [ngValue]="null">Selecciona un residuo</option>
+          @for (residuo of residuos; track residuo.id_residuo) {
+            <option [ngValue]="residuo.id_residuo">
+              #{{ residuo.id_residuo }} - {{ residuo.tipo_residuo }} ({{ residuo.cantidad_kg }} kg)
+            </option>
+          }
+        </select>
+      </label>
+      <label>Campesino
+        <select [(ngModel)]="formulario.id_campesino_id" name="campesino" required>
+          <option [ngValue]="null">Selecciona un campesino</option>
+          @for (campesino of campesinos; track campesino.id_campesino) {
+            <option [ngValue]="campesino.id_campesino">{{ campesino.nombre }}</option>
+          }
+        </select>
+      </label>
+      <label>Fecha de asignación
+        <input type="datetime-local" [(ngModel)]="formulario.fecha_asignacion" name="fecha" required>
+      </label>
+      <div class="actions">
+        <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
+        @if (editandoId) {
+          <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
+        }
+      </div>
+    </form>
+    @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+  </section>
+
+  <section class="panel">
+    <h2>Asignaciones</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Residuo</th><th>Campesino</th><th>Fecha</th><th>Acciones</th></tr></thead>
+        <tbody>
+          @for (gestion of gestiones; track gestion.id_gestion) {
+            <tr>
+              <td>{{ gestion.residuo.tipo_residuo }} · {{ gestion.residuo.cantidad_kg }} kg</td>
+              <td>{{ gestion.campesino_nombre }}</td>
+              <td>{{ gestion.fecha_asignacion | date:'medium' }}</td>
+              <td class="actions">
+                <button type="button" class="btn btn-small" (click)="editar(gestion)">Editar</button>
+                <button type="button" class="btn btn-danger btn-small" (click)="eliminar(gestion.id_gestion)">Eliminar</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">No hay asignaciones creadas.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

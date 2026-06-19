@@ -1,3 +1,180 @@
-from django.test import TestCase
+from django.contrib.auth.models import User
+from django.core import mail
+from django.test import override_settings
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from unittest.mock import patch
 
-# Create your tests here.
+from .models import Campesino, Contribuyente, ResiduoOrganico, Usuario
+from .views import crear_token_verificacion
+
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    FRONTEND_URL='http://localhost:4200',
+)
+class VerificacionCorreoTests(APITestCase):
+    def test_registro_crea_usuario_inactivo_y_envia_correo(self):
+        respuesta = self.client.post(
+            reverse('registro_usuario'),
+            {
+                'username': 'campesino1',
+                'email': 'campesino@example.com',
+                'password': 'UnaClaveSegura123',
+                'nombre_completo': 'Campesino Uno',
+                'tipo_rol': 'Campesino',
+            },
+            format='json',
+        )
+
+        self.assertEqual(
+            respuesta.status_code,
+            status.HTTP_201_CREATED,
+            respuesta.data,
+        )
+        self.assertFalse(User.objects.get(username='campesino1').is_active)
+        self.assertTrue(Usuario.objects.filter(correo='campesino@example.com').exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('/activar-cuenta?token=', mail.outbox[0].body)
+
+    def test_usuario_inactivo_no_puede_iniciar_sesion(self):
+        User.objects.create_user(
+            username='pendiente',
+            email='pendiente@example.com',
+            password='UnaClaveSegura123',
+            is_active=False,
+        )
+
+        respuesta = self.client.post(
+            reverse('token_obtain_pair'),
+            {
+                'username': 'pendiente',
+                'password': 'UnaClaveSegura123',
+            },
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('confirmar tu correo', str(respuesta.data['detail']))
+
+    def test_enlace_valido_activa_usuario(self):
+        usuario = User.objects.create_user(
+            username='poractivar',
+            email='poractivar@example.com',
+            password='UnaClaveSegura123',
+            is_active=False,
+        )
+        token = crear_token_verificacion(usuario)
+
+        respuesta = self.client.get(
+            reverse('activar_cuenta'),
+            {'token': token},
+        )
+
+        usuario.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertTrue(usuario.is_active)
+
+    def test_enlace_alterado_es_rechazado(self):
+        respuesta = self.client.get(
+            reverse('activar_cuenta'),
+            {'token': 'token-alterado'},
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('app_smart.views.send_mail', side_effect=RuntimeError('SMTP no disponible'))
+    def test_fallo_de_correo_no_deja_cuenta_incompleta(self, _send_mail):
+        respuesta = self.client.post(
+            reverse('registro_usuario'),
+            {
+                'username': 'sincorreo',
+                'email': 'sincorreo@example.com',
+                'password': 'UnaClaveSegura123',
+                'nombre_completo': 'Sin Correo',
+                'tipo_rol': 'Campesino',
+            },
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertFalse(User.objects.filter(username='sincorreo').exists())
+        self.assertFalse(Usuario.objects.filter(correo='sincorreo@example.com').exists())
+
+
+class CrudPorRolTests(APITestCase):
+    def crear_usuario(self, username, rol):
+        user = User.objects.create_user(
+            username=username,
+            email=f'{username}@example.com',
+            password='UnaClaveSegura123',
+        )
+        perfil = Usuario.objects.create(
+            nombre=username.title(),
+            correo=user.email,
+            tipo_usuario=rol,
+        )
+        return user, perfil
+
+    def test_contribuyente_administra_sus_residuos(self):
+        user, perfil = self.crear_usuario('contribuyente', 'Contribuyente')
+        Contribuyente.objects.create(id_usuario=perfil)
+        self.client.force_authenticate(user)
+
+        crear = self.client.post(
+            reverse('residuos'),
+            {'tipo_residuo': 'Cáscaras', 'cantidad_kg': '12.50'},
+            format='json',
+        )
+        listar = self.client.get(reverse('residuos'))
+
+        self.assertEqual(crear.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(listar.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(listar.data), 1)
+        self.assertEqual(listar.data[0]['estado'], 'Pendiente')
+
+    def test_campesino_administra_sus_sensores(self):
+        user, perfil = self.crear_usuario('campesino', 'Campesino')
+        Campesino.objects.create(id_usuario=perfil)
+        self.client.force_authenticate(user)
+
+        crear = self.client.post(
+            reverse('sensores'),
+            {'tipo_sensor': 'Humedad'},
+            format='json',
+        )
+        prohibido = self.client.get(reverse('residuos'))
+
+        self.assertEqual(crear.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(prohibido.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_alcaldia_asigna_residuo_a_campesino(self):
+        contrib_user, contrib_perfil = self.crear_usuario('donante', 'Contribuyente')
+        contribuyente = Contribuyente.objects.create(id_usuario=contrib_perfil)
+        residuo = ResiduoOrganico.objects.create(
+            id_contribuyente=contribuyente,
+            tipo_residuo='Restos vegetales',
+            cantidad_kg=20,
+            estado='Pendiente',
+        )
+        _ = contrib_user
+
+        _, campesino_perfil = self.crear_usuario('receptor', 'Campesino')
+        campesino = Campesino.objects.create(id_usuario=campesino_perfil)
+        alcaldia_user, _ = self.crear_usuario('alcaldia', 'Alcaldia')
+        self.client.force_authenticate(alcaldia_user)
+
+        respuesta = self.client.post(
+            reverse('gestiones'),
+            {
+                'id_residuo_id': residuo.id_residuo,
+                'id_campesino_id': campesino.id_campesino,
+                'fecha_asignacion': '2026-06-20T10:00:00Z',
+            },
+            format='json',
+        )
+
+        residuo.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(residuo.estado, 'Asignado')

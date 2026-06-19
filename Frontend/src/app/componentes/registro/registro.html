@@ -2,7 +2,7 @@
   <h2 style="text-align: center; color: #2c3e50;">Crear Cuenta</h2>
   <p style="text-align: center; color: #7f8c8d; font-size: 14px;">Tierra y Vida Smart</p>
 
-  <form (ngSubmit)="onRegistro()">
+  <form #registroForm="ngForm" (ngSubmit)="onRegistro()">
     <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre Completo:</label>
       <input type="text" [(ngModel)]="datosUsuario.nombre_completo" name="nombre" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
@@ -25,19 +25,25 @@
 
     <div style="margin-bottom: 20px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Rol:</label>
-      <select [(ngModel)]="datosUsuario.tipo_rol" name="tipo_rol" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; background-color: white;">
+      <select [(ngModel)]="datosUsuario.tipo_rol" name="tipo_rol" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; background-color: white;">
         <option value="Campesino">Campesino</option>
         <option value="Contribuyente">Contribuyente</option>
         <option value="Alcaldia">Alcaldía</option>
       </select>
     </div>
 
-    <button type="submit" style="width: 100%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
-      Registrarse
+    <button type="submit" [disabled]="registroForm.invalid || enviando" style="width: 100%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+      {{ enviando ? 'Registrando...' : 'Registrarse' }}
     </button>
   </form>
 
+  @if (mensajeError) {
+    <p role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
+      {{ mensajeError }}
+    </p>
+  }
+
   <p style="text-align: center; margin-top: 20px; font-size: 14px;">
-    ¿Ya tienes una cuenta? <a href="/login" style="color: #3498db; text-decoration: none; font-weight: bold;">Inicia sesión</a>
+    ¿Ya tienes una cuenta? <a routerLink="/login" style="color: #3498db; text-decoration: none; font-weight: bold;">Inicia sesión</a>
   </p>
 </div>

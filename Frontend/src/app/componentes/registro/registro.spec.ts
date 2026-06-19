@@ -1,17 +1,26 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
-import { Registro } from './registro';
+import { AuthService } from '../../services/auth';
+import { RegistroComponent } from './registro';
 
-describe('Registro', () => {
-  let component: Registro;
-  let fixture: ComponentFixture<Registro>;
+describe('RegistroComponent', () => {
+  let component: RegistroComponent;
+  let fixture: ComponentFixture<RegistroComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Registro],
+      imports: [RegistroComponent],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: { registrar: vi.fn() }
+        },
+        provideRouter([])
+      ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Registro);
+    fixture = TestBed.createComponent(RegistroComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

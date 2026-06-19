@@ -2,7 +2,7 @@
   <h2 style="text-align: center; color: #2c3e50;">Iniciar Sesión</h2>
   <p style="text-align: center; color: #7f8c8d; font-size: 14px;">Tierra y Vida Smart</p>
 
-  <form (ngSubmit)="onLogin()">
+  <form #loginForm="ngForm" (ngSubmit)="onLogin()">
     <div style="margin-bottom: 15px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Usuario:</label>
       <input type="text" [(ngModel)]="credenciales.username" name="username" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
@@ -13,21 +13,36 @@
       <input type="password" [(ngModel)]="credenciales.password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
     </div>
 
-    <button type="submit" style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
-      Ingresar
+    <button type="submit" [disabled]="loginForm.invalid || enviando" style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+      {{ enviando ? 'Ingresando...' : 'Ingresar' }}
     </button>
   </form>
 
+  @if (mensajeError) {
+    <p role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
+      {{ mensajeError }}
+    </p>
+  }
+
   <div style="text-align: center; margin: 20px 0; color: #95a5a6; position: relative;">
-    <span style="background: white; padding: 0 10px; position: relative; z-index: 1;">O también</span>
-    <hr style="position: absolute; top: 50%; left: 0; right: 0; border: 0; border-top: 1px solid #ecf0f1; margin: 0; z-index: 0;">
+    <span style="background: white; padding: 0 10px; position: relative; z-index: 1;">O continúa con</span>
+    <hr style="position: absolute; top: 50%; left: 0; right: 0; border: 0; border-top: 1px solid #ecf0f1; margin: 0;">
   </div>
 
   <div style="display: flex; justify-content: center;">
-    <asl-google-signin-button type="standard" size="large" text="signin_with"></asl-google-signin-button>
+    @if (enviandoGoogle) {
+      <span>Validando cuenta de Google...</span>
+    } @else {
+      <asl-google-signin-button
+        type="standard"
+        size="large"
+        text="continue_with"
+        theme="outline">
+      </asl-google-signin-button>
+    }
   </div>
 
   <p style="text-align: center; margin-top: 20px; font-size: 14px;">
-    ¿No tienes cuenta? <a href="/registro" style="color: #2ecc71; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
+    ¿No tienes cuenta? <a routerLink="/registro" style="color: #2ecc71; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
   </p>
 </div>
