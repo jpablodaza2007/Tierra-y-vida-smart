@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
@@ -18,7 +18,8 @@ export class PanelContribuyenteComponent implements OnInit {
 
   constructor(
     public auth: AuthService,
-    private crud: CrudService
+    private crud: CrudService,
+    private cdr: ChangeDetectorRef
   ) {
     this.usuario = this.auth.obtenerUsuario();
   }
@@ -28,12 +29,15 @@ export class PanelContribuyenteComponent implements OnInit {
   }
 
   nuevoFormulario() {
-    return { tipo_residuo: '', cantidad_kg: null as number | null, estado: 'Pendiente' };
+    return { tipo_residuo: '', cantidad_kg: null as number | null };
   }
 
   cargar(): void {
     this.crud.listarResiduos().subscribe({
-      next: (datos) => this.residuos = datos,
+      next: (datos) => {
+        this.residuos = datos;
+        this.cdr.detectChanges();
+      },
       error: (err) => this.mensajeError = err.error?.detail || 'No se pudieron cargar los residuos.'
     });
   }
@@ -55,17 +59,25 @@ export class PanelContribuyenteComponent implements OnInit {
       return;
     }
 
+    const payload = {
+      tipo_residuo: this.formulario.tipo_residuo?.trim(),
+      cantidad_kg: Number(this.formulario.cantidad_kg)
+    };
+
     const peticion = this.editandoId
-      ? this.crud.actualizarResiduo(this.editandoId, this.formulario)
-      : this.crud.crearResiduo(this.formulario);
+      ? this.crud.actualizarResiduo(this.editandoId, payload)
+      : this.crud.crearResiduo(payload);
 
     peticion.subscribe({
       next: () => {
+        this.mensajeError = '';
         this.cancelar();
         this.cargar();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.mensajeError = err.error?.detail || 'No se pudo guardar el residuo.';
+        this.cdr.detectChanges();
       }
     });
   }
@@ -74,9 +86,9 @@ export class PanelContribuyenteComponent implements OnInit {
     this.editandoId = residuo.id_residuo;
     this.formulario = {
       tipo_residuo: residuo.tipo_residuo,
-      cantidad_kg: Number(residuo.cantidad_kg),
-      estado: residuo.estado
+      cantidad_kg: Number(residuo.cantidad_kg)
     };
+    this.cdr.detectChanges();
   }
 
   eliminar(id: number): void {
@@ -91,5 +103,6 @@ export class PanelContribuyenteComponent implements OnInit {
     this.editandoId = null;
     this.formulario = this.nuevoFormulario();
     this.mensajeError = '';
+    this.cdr.detectChanges();
   }
 }

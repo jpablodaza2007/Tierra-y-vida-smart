@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     ActivarCuentaView,
+    AprobarUsuarioView,
     GestionDetailView,
     GestionListCreateView,
     GoogleLoginView,
@@ -26,6 +27,7 @@ urlpatterns = [
     
     path('auth/login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', PerfilView.as_view(), name='perfil'),
+    path('usuarios/<int:id_usuario>/aprobar/', AprobarUsuarioView.as_view(), name='aprobar_usuario'),
 
     path('residuos/', ResiduoListCreateView.as_view(), name='residuos'),
     path('residuos/<int:id_residuo>/', ResiduoDetailView.as_view(), name='residuo_detalle'),

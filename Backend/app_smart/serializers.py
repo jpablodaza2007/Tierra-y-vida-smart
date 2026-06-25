@@ -64,11 +64,19 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResiduoOrganico
         fields = ['id_residuo', 'tipo_residuo', 'cantidad_kg', 'estado']
-        read_only_fields = ['id_residuo']
+        read_only_fields = ['id_residuo', 'estado']
         extra_kwargs = {
             'tipo_residuo': {'required': True, 'allow_blank': False},
             'cantidad_kg': {'required': True},
         }
+
+    def create(self, validated_data):
+        validated_data['estado'] = 'Pendiente'
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('estado', None)
+        return super().update(instance, validated_data)
 
     def validate_tipo_residuo(self, value):
         if not value or not str(value).strip():
