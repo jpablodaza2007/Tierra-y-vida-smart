@@ -81,6 +81,16 @@ class Usuario(models.Model):
     nombre = models.CharField(max_length=100)
     correo = models.CharField(unique=True, max_length=150)
     tipo_usuario = models.CharField(max_length=50, blank=True, null=True)
+    comprobante_registro = models.FileField(
+        upload_to='comprobantes/',
+        blank=True,
+        null=True,
+    )
+    estado_cuenta = models.CharField(
+        max_length=30,
+        default='activo',
+        blank=True,
+    )
 
     class Meta:
         managed = True

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -101,6 +102,54 @@ class VerificacionCorreoTests(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertFalse(User.objects.filter(username='sincorreo').exists())
         self.assertFalse(Usuario.objects.filter(correo='sincorreo@example.com').exists())
+
+
+class AutenticacionYRegistroTests(APITestCase):
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    @patch('app_smart.views.id_token.verify_oauth2_token')
+    def test_google_login_rechaza_correos_no_registrados(self, mock_verify):
+        mock_verify.return_value = {
+            'email': 'nuevo@example.com',
+            'email_verified': True,
+            'name': 'Nuevo Usuario',
+        }
+
+        respuesta = self.client.post(
+            reverse('google_login'),
+            {'token': 'token-fake'},
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('registrarse formalmente', str(respuesta.data['error']))
+        self.assertFalse(User.objects.filter(email='nuevo@example.com').exists())
+
+    def test_registro_con_comprobante_para_alcaldia_queda_pendiente(self):
+        comprobante = SimpleUploadedFile(
+            'comprobante.pdf',
+            b'%PDF-1.4\n',
+            content_type='application/pdf',
+        )
+
+        respuesta = self.client.post(
+            reverse('registro_usuario'),
+            {
+                'username': 'alcaldia1',
+                'email': 'alcaldia@example.com',
+                'password': 'UnaClaveSegura123',
+                'nombre_completo': 'Alcaldía Uno',
+                'tipo_rol': 'Alcaldía',
+                'comprobante_registro': comprobante,
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        usuario_django = User.objects.get(username='alcaldia1')
+        self.assertFalse(usuario_django.is_active)
+        perfil = Usuario.objects.get(correo='alcaldia@example.com')
+        self.assertEqual(perfil.estado_cuenta, 'pendiente_aprobacion')
+        self.assertTrue(bool(perfil.comprobante_registro))
 
 
 class CrudPorRolTests(APITestCase):
