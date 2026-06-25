@@ -37,6 +37,7 @@ class VerificacionCorreoTests(APITestCase):
         self.assertFalse(User.objects.get(username='campesino1').is_active)
         self.assertTrue(Usuario.objects.filter(correo='campesino@example.com').exists())
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['campesino@example.com'])
         self.assertIn('/activar-cuenta?token=', mail.outbox[0].body)
 
     def test_usuario_inactivo_no_puede_iniciar_sesion(self):
@@ -77,6 +78,33 @@ class VerificacionCorreoTests(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertTrue(usuario.is_active)
 
+    def test_enlace_valido_envia_correo_de_habilitacion(self):
+        usuario = User.objects.create_user(
+            username='poractivarcorreo',
+            email='poractivarcorreo@example.com',
+            password='UnaClaveSegura123',
+            is_active=False,
+        )
+        Usuario.objects.create(
+            nombre='Por Activar Correo',
+            correo='poractivarcorreo@example.com',
+            tipo_usuario='Campesino',
+            estado_cuenta='pendiente_activacion',
+        )
+        token = crear_token_verificacion(usuario)
+
+        respuesta = self.client.get(
+            reverse('activar_cuenta'),
+            {'token': token},
+        )
+
+        usuario.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertTrue(usuario.is_active)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['poractivarcorreo@example.com'])
+        self.assertIn('ha sido verificada y habilitada', mail.outbox[0].body)
+
     def test_enlace_alterado_es_rechazado(self):
         respuesta = self.client.get(
             reverse('activar_cuenta'),
@@ -84,6 +112,71 @@ class VerificacionCorreoTests(APITestCase):
         )
 
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_puede_aprobar_usuario_y_enviar_correo(self):
+        usuario_auth = User.objects.create_user(
+            username='poraprobar',
+            email='poraprobar@example.com',
+            password='UnaClaveSegura123',
+            is_active=False,
+        )
+        perfil = Usuario.objects.create(
+            nombre='Por Aprobar',
+            correo='poraprobar@example.com',
+            tipo_usuario='Contribuyente',
+            estado_cuenta='pendiente_aprobacion',
+        )
+        admin = User.objects.create_user(
+            username='admin',
+            email='admin@example.com',
+            password='UnaClaveSegura123',
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_authenticate(admin)
+
+        respuesta = self.client.post(reverse('aprobar_usuario', args=[usuario_auth.pk]))
+
+        usuario_auth.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertTrue(usuario_auth.is_active)
+        self.assertEqual(perfil.estado_cuenta, 'aprobado')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('ha sido verificada y habilitada', mail.outbox[0].body)
+
+    @patch('app_smart.views.send_mail', side_effect=RuntimeError('SMTP no disponible'))
+    def test_fallo_de_correo_en_aprobacion_no_cambia_estado(self, _send_mail):
+        usuario_auth = User.objects.create_user(
+            username='sincorreo',
+            email='sincorreo@example.com',
+            password='UnaClaveSegura123',
+            is_active=False,
+        )
+        perfil = Usuario.objects.create(
+            nombre='Sin Correo',
+            correo='sincorreo@example.com',
+            tipo_usuario='Alcaldia',
+            estado_cuenta='pendiente_aprobacion',
+        )
+        admin = User.objects.create_user(
+            username='admin2',
+            email='admin2@example.com',
+            password='UnaClaveSegura123',
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_authenticate(admin)
+
+        respuesta = self.client.post(reverse('aprobar_usuario', args=[usuario_auth.pk]))
+
+        usuario_auth.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertFalse(usuario_auth.is_active)
+        self.assertEqual(perfil.estado_cuenta, 'pendiente_aprobacion')
 
     @patch('app_smart.views.send_mail', side_effect=RuntimeError('SMTP no disponible'))
     def test_fallo_de_correo_no_deja_cuenta_incompleta(self, _send_mail):
