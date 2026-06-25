@@ -127,6 +127,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 GOOGLE_CLIENT_ID = os.environ.get(
     'GOOGLE_CLIENT_ID',
@@ -139,7 +141,7 @@ EMAIL_VERIFICATION_MAX_AGE = 60 * 60 * 24
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_BACKEND = (
-    'django.core.mail.backends.smtp.EmailBackend'
+    'app_smart.backends.UnverifiedSMTPBackend'
     if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
     else 'django.core.mail.backends.console.EmailBackend'
 )
@@ -151,6 +153,8 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     'DEFAULT_FROM_EMAIL',
     EMAIL_HOST_USER or 'Tierra y Vida Smart <no-reply@localhost>',
 )
+ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'fabiantfandi@gmail.com')
+ADMIN_NOTIFICATION_NAME = os.environ.get('ADMIN_NOTIFICATION_NAME', 'Administrador')
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",

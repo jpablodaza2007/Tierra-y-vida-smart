@@ -60,24 +60,46 @@ def crear_token_verificacion(usuario):
     )
 
 
-def enviar_correo_verificacion(usuario):
+def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, requiere_aprobacion=False, comprobante_url=None):
     token = crear_token_verificacion(usuario)
     url = (
         f'{settings.FRONTEND_URL}/activar-cuenta?'
         f'{urlencode({"token": token})}'
     )
 
-    send_mail(
-        subject='Confirma tu cuenta de Tierra y Vida Smart',
-        message=(
+    destinatario = settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL or usuario.email
+
+    if requiere_aprobacion:
+        mensaje = (
+            f'Hola {settings.ADMIN_NOTIFICATION_NAME or "Administrador"},\n\n'
+            'Se recibió una solicitud de registro para tu plataforma.\n\n'
+            f'Correo del solicitante: {correo_solicitante or usuario.email}\n'
+            f'Rol solicitado: {rol or "No especificado"}\n'
+            f'Estado de la cuenta: pendiente de aprobación\n'
+            f'Comprobante adjunto: {comprobante_url or "No disponible"}\n\n'
+            'Puedes revisar la solicitud y decidir si apruebas o rechazas el acceso.\n\n'
+            'Para activar la cuenta una vez aprobada, usa este enlace:\n'
+            f'{url}\n\n'
+            'El enlace vence en 24 horas. Si no creaste esta cuenta, '
+            'puedes ignorar este mensaje.'
+        )
+        asunto = 'Solicitud de registro pendiente de aprobación - Tierra y Vida Smart'
+    else:
+        mensaje = (
             f'Hola {usuario.first_name or usuario.username},\n\n'
             'Confirma tu correo electrónico abriendo este enlace:\n'
             f'{url}\n\n'
             'El enlace vence en 24 horas. Si no creaste esta cuenta, '
             'puedes ignorar este mensaje.'
-        ),
+        )
+        asunto = 'Confirma tu cuenta de Tierra y Vida Smart'
+        destinatario = usuario.email
+
+    send_mail(
+        subject=asunto,
+        message=mensaje,
         from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[usuario.email],
+        recipient_list=[destinatario],
         fail_silently=False,
     )
     return url
@@ -87,12 +109,16 @@ class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
 class RegistroUsuarioView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def post(self, request):
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
         nombre_completo = request.data.get('nombre_completo')
         tipo_rol = request.data.get('tipo_rol')
+        comprobante = request.FILES.get('comprobante_registro')
 
         campos_faltantes = []
         if not username:
@@ -145,6 +171,19 @@ class RegistroUsuarioView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        requiere_comprobante = tipo_rol_normalizado in {'contribuyente', 'alcaldia', 'alcaldía'}
+        if requiere_comprobante and not comprobante:
+            return Response(
+                {"error": "Este rol requiere adjuntar un comprobante de registro."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if comprobante and not getattr(comprobante, 'name', '').lower().endswith(('.pdf', '.jpg', '.jpeg', '.png')):
+            return Response(
+                {"error": "El comprobante debe ser un archivo PDF o imagen."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if User.objects.filter(username=username).exists():
             return Response(
                 {"error": "El nombre de usuario ya existe."},
@@ -167,27 +206,40 @@ class RegistroUsuarioView(APIView):
                     is_active=False,
                 )
 
+                estado_cuenta = 'pendiente_aprobacion' if requiere_comprobante else 'pendiente_activacion'
                 nuevo_usuario = Usuario.objects.create(
                     nombre=nombre_completo,
                     correo=email,
-                    tipo_usuario=tipo_rol
+                    tipo_usuario=tipo_rol,
+                    comprobante_registro=comprobante,
+                    estado_cuenta=estado_cuenta,
                 )
                 crear_perfil_rol(nuevo_usuario)
 
                 try:
-                    activacion_url = enviar_correo_verificacion(usuario_auth)
+                    comprobante_url = None
+                    if comprobante:
+                        comprobante_url = f"{request.build_absolute_uri('/')}{nuevo_usuario.comprobante_registro.url}" if nuevo_usuario.comprobante_registro else None
+                    activacion_url = enviar_correo_verificacion(
+                        usuario_auth,
+                        rol=tipo_rol,
+                        correo_solicitante=email,
+                        requiere_aprobacion=requiere_comprobante,
+                        comprobante_url=comprobante_url,
+                    )
                 except Exception as e:
                     logging.exception('Error al enviar correo de verificación')
                     raise
 
             respuesta = {
                 "mensaje": (
+                    "Registro completado. Tu cuenta queda pendiente de aprobación."
+                    if requiere_comprobante else
                     "Registro completado. Revisa tu correo para activar la cuenta."
                 ),
-                "usuario_id": nuevo_usuario.id_usuario
+                "usuario_id": nuevo_usuario.id_usuario,
+                "estado_cuenta": estado_cuenta,
             }
-            if settings.DEBUG and settings.EMAIL_BACKEND.endswith('console.EmailBackend'):
-                respuesta['activacion_url'] = activacion_url
 
             return Response(respuesta, status=status.HTTP_201_CREATED)
 
@@ -280,38 +332,26 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        with transaction.atomic():
-            usuario_auth = User.objects.filter(email__iexact=email).first()
+        usuario_auth = User.objects.filter(email__iexact=email).first()
+        perfil = Usuario.objects.filter(correo__iexact=email).first()
 
-            if usuario_auth is None:
-                username_base = email.split('@', 1)[0][:140] or 'usuario'
-                username = username_base
-                consecutivo = 1
-
-                while User.objects.filter(username=username).exists():
-                    sufijo = str(consecutivo)
-                    username = f'{username_base[:150 - len(sufijo)]}{sufijo}'
-                    consecutivo += 1
-
-                usuario_auth = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    first_name=nombre[:150],
-                )
-                usuario_auth.set_unusable_password()
-                usuario_auth.save(update_fields=['password'])
-            elif not usuario_auth.is_active:
-                usuario_auth.is_active = True
-                usuario_auth.save(update_fields=['is_active'])
-
-            perfil, _ = Usuario.objects.get_or_create(
-                correo=email,
-                defaults={
-                    'nombre': nombre[:100],
-                    'tipo_usuario': 'Contribuyente',
-                },
+        if usuario_auth is None or perfil is None:
+            return Response(
+                {'error': 'El correo de Google no está registrado. Debe registrarse formalmente primero.'},
+                status=status.HTTP_403_FORBIDDEN,
             )
-            crear_perfil_rol(perfil)
+
+        if not usuario_auth.is_active:
+            return Response(
+                {'error': 'La cuenta aún no está activa. Debe esperar aprobación o activar su correo.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if perfil.estado_cuenta == 'pendiente_aprobacion':
+            return Response(
+                {'error': 'La cuenta está pendiente de aprobación por parte del administrador.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         refresh = RefreshToken.for_user(usuario_auth)
 

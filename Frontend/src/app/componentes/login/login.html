@@ -13,14 +13,15 @@
       <input type="password" [(ngModel)]="credenciales.password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
     </div>
 
-    <button type="submit" [disabled]="loginForm.invalid || enviando" style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+    <button type="submit" [disabled]="enviando" style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
       {{ enviando ? 'Ingresando...' : 'Ingresar' }}
     </button>
   </form>
 
-  <p *ngIf="mensajeError" role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
-    {{ mensajeError }}
-  </p>
+  <div *ngIf="mensajeError" role="alert" style="margin-top: 16px; padding: 12px; border: 1px solid #e74c3c; border-radius: 6px; background: #fdecea; color: #b91c1c; font-size: 14px; line-height: 1.4; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+    <strong style="display: block; margin-bottom: 4px;">Atención</strong>
+    <span>{{ mensajeError }}</span>
+  </div>
 
   <div style="text-align: center; margin: 20px 0; color: #95a5a6; position: relative;">
     <span style="background: white; padding: 0 10px; position: relative; z-index: 1;">O continúa con</span>
