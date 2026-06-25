@@ -1,4 +1,5 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, DestroyRef, NgZone, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize, timeout } from 'rxjs';
@@ -12,11 +13,13 @@ import { AuthService } from '../../services/auth';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, RouterLink, GoogleSigninButtonModule],
+  imports: [CommonModule, FormsModule, RouterLink, GoogleSigninButtonModule],
   templateUrl: './login.html'
 })
 export class LoginComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly ngZone = inject(NgZone);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   credenciales = { username: '', password: '' };
   enviando = false;
@@ -34,20 +37,35 @@ export class LoginComponent implements OnInit {
       .subscribe((user) => {
         if (!user?.idToken) return;
 
-        this.enviandoGoogle = true;
-        this.mensajeError = '';
+        this.ngZone.run(() => {
+          this.enviandoGoogle = true;
+          this.mensajeError = '';
+          this.cdr.detectChanges();
+        });
 
         this.authService.loginConGoogle(user.idToken)
-          .pipe(finalize(() => this.enviandoGoogle = false))
+          .pipe(finalize(() => this.ngZone.run(() => {
+            this.enviandoGoogle = false;
+            this.cdr.detectChanges();
+          })))
           .subscribe({
             next: (res) => {
-              this.authService.guardarSesion(res);
-              this.authService.irAlPanel();
+              this.ngZone.run(() => {
+                this.authService.guardarSesion(res);
+                this.authService.irAlPanel();
+              });
             },
             error: (err) => {
-              this.mensajeError = err.status === 0
+              const textoError = typeof err.error === 'string'
+                ? err.error
+                : err.error?.error || err.error?.detail || err.error?.message || 'No fue posible iniciar sesión con Google.';
+              const mensaje = err.status === 0
                 ? 'No se pudo conectar con el servidor.'
-                : (err.error?.error || 'No fue posible iniciar sesión con Google.');
+                : textoError;
+              this.ngZone.run(() => {
+                this.mensajeError = mensaje;
+                this.cdr.detectChanges();
+              });
             }
           });
       });
@@ -56,16 +74,21 @@ export class LoginComponent implements OnInit {
   onLogin() {
     if (this.enviando || this.enviandoGoogle) return;
 
-    this.enviando = true;
-    this.mensajeError = '';
+    this.ngZone.run(() => {
+      this.enviando = true;
+      this.mensajeError = '';
+      this.cdr.detectChanges();
+    });
 
     this.authService.login(this.credenciales)
       .pipe(timeout(20000))
       .pipe(finalize(() => this.enviando = false))
       .subscribe({
         next: (res) => {
-          this.authService.guardarSesion(res);
-          this.authService.irAlPanel();
+          this.ngZone.run(() => {
+            this.authService.guardarSesion(res);
+            this.authService.irAlPanel();
+          });
         },
         error: (err) => {
           const textoError = typeof err.error === 'string'
@@ -78,8 +101,10 @@ export class LoginComponent implements OnInit {
             : textoError?.includes('No active account found with the given credentials')
               ? 'Usuario o contraseña incorrectos.'
               : textoError || 'Usuario o contraseña incorrectos.';
-          this.mensajeError = mensaje;
-          alert(mensaje);
+          this.ngZone.run(() => {
+            this.mensajeError = mensaje;
+            this.cdr.detectChanges();
+          });
         }
       });
   }

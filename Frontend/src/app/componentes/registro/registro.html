@@ -1,46 +1,59 @@
-<div style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+<div style="max-width: 420px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
   <h2 style="text-align: center; color: #2c3e50;">Crear Cuenta</h2>
   <p style="text-align: center; color: #7f8c8d; font-size: 14px;">Tierra y Vida Smart</p>
 
-  <form #registroForm="ngForm" (ngSubmit)="onRegistro()">
+  <form [formGroup]="registroForm" (ngSubmit)="onRegistro()">
     <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre Completo:</label>
-      <input type="text" [(ngModel)]="datosUsuario.nombre_completo" name="nombre" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <input type="text" formControlName="nombre_completo" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <small *ngIf="registroForm.get('nombre_completo')?.invalid && registroForm.get('nombre_completo')?.touched" style="display:block; margin-top:4px; color:#e74c3c;">Este campo es obligatorio.</small>
     </div>
 
     <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre de Usuario (Username):</label>
-      <input type="text" [(ngModel)]="datosUsuario.username" name="username" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <input type="text" formControlName="username" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <small *ngIf="registroForm.get('username')?.invalid && registroForm.get('username')?.touched" style="display:block; margin-top:4px; color:#e74c3c;">Este campo es obligatorio.</small>
     </div>
 
     <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Correo Electrónico:</label>
-      <input type="email" [(ngModel)]="datosUsuario.email" name="email" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <input type="email" formControlName="email" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <small *ngIf="registroForm.get('email')?.invalid && registroForm.get('email')?.touched" style="display:block; margin-top:4px; color:#e74c3c;">Ingresa un correo válido.</small>
     </div>
 
     <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Contraseña:</label>
-      <input type="password" [(ngModel)]="datosUsuario.password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <input type="password" formControlName="password" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+      <small *ngIf="registroForm.get('password')?.invalid && registroForm.get('password')?.touched" style="display:block; margin-top:4px; color:#e74c3c;">Mínimo 6 caracteres y una mayúscula.</small>
     </div>
 
-    <div style="margin-bottom: 20px;">
+    <div style="margin-bottom: 12px;">
       <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Rol:</label>
-      <select [(ngModel)]="datosUsuario.tipo_rol" name="tipo_rol" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; background-color: white;">
+      <select formControlName="tipo_rol" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; background-color: white;">
         <option value="Campesino">Campesino</option>
-        <option value="Contribuyente">Contribuyente</option>
+        <option value="Contribuyente">Contribuyente ecológico</option>
         <option value="Alcaldia">Alcaldía</option>
       </select>
     </div>
 
-    <button type="submit" [disabled]="registroForm.invalid || enviando" style="width: 100%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+    <div *ngIf="requiereComprobante" style="margin-bottom: 16px; padding: 10px; border: 1px dashed #2ecc71; border-radius: 6px; background: #f7fff8;">
+      <label style="display: block; margin-bottom: 6px; font-weight: bold;">Comprobante de registro:</label>
+      <input type="file" (change)="onArchivoSeleccionado($event)" accept=".pdf,.jpg,.jpeg,.png" style="width: 100%;">
+      <small *ngIf="registroForm.get('comprobante_registro')?.invalid && registroForm.get('comprobante_registro')?.touched" style="display:block; margin-top:6px; color:#e74c3c;">
+        Debes adjuntar un comprobante para este rol.
+      </small>
+    </div>
+
+    <button type="submit" [disabled]="enviando" style="width: 100%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
       {{ enviando ? 'Registrando...' : 'Registrarse' }}
     </button>
   </form>
 
   @if (mensajeError) {
-    <p role="alert" style="text-align: center; color: #c0392b; font-size: 14px;">
-      {{ mensajeError }}
-    </p>
+    <div role="alert" style="margin-top: 16px; padding: 12px; border: 1px solid #e74c3c; border-radius: 6px; background: #fdecea; color: #b91c1c; font-size: 14px; line-height: 1.4; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+      <strong style="display: block; margin-bottom: 4px;">Atención</strong>
+      <span>{{ mensajeError }}</span>
+    </div>
   }
 
   <p style="text-align: center; margin-top: 20px; font-size: 14px;">
