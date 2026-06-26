@@ -70,6 +70,14 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             'cantidad_kg': {'required': True},
         }
 
+    def create(self, validated_data):
+        validated_data['estado'] = 'Pendiente'
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('estado', None)
+        return super().update(instance, validated_data)
+
     def validate_tipo_residuo(self, value):
         if not value or not str(value).strip():
             raise serializers.ValidationError('El tipo de residuo es obligatorio.')

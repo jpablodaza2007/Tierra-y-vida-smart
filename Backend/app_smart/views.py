@@ -10,7 +10,7 @@ from django.utils.http import urlencode
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -23,6 +23,7 @@ from .models import (
     GestionLogistica,
     ResiduoOrganico,
     Sensor,
+    SolicitudResiduo,
     Usuario,
 )
 from .serializers import (
@@ -298,6 +299,45 @@ class ActivarCuentaView(APIView):
         return Response({'mensaje': 'Tu cuenta fue activada correctamente.'})
 
 
+class AprobarCuentaView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        usuario_id = request.data.get('usuario_id')
+        if not usuario_id:
+            return Response({'error': 'Debe indicar el usuario a aprobar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        usuario_auth = User.objects.filter(pk=usuario_id).first()
+        if usuario_auth is None:
+            return Response({'error': 'No se encontró el usuario.'}, status=status.HTTP_404_NOT_FOUND)
+
+        perfil = obtener_perfil(usuario_auth)
+        if perfil is None:
+            return Response({'error': 'No se encontró el perfil del usuario.'}, status=status.HTTP_404_NOT_FOUND)
+
+        usuario_auth.is_active = True
+        usuario_auth.save(update_fields=['is_active'])
+        perfil.estado_cuenta = 'aprobado'
+        perfil.save(update_fields=['estado_cuenta'])
+
+        try:
+            send_mail(
+                subject='Cuenta aprobada - Tierra y Vida Smart',
+                message=(
+                    f'Hola {perfil.nombre},\n\n'
+                    'Tu cuenta ha sido aprobada por el administrador. '
+                    'Ya puedes iniciar sesión en la plataforma.'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[usuario_auth.email],
+                fail_silently=False,
+            )
+        except Exception:
+            logging.exception('Error al enviar correo de aprobación')
+
+        return Response({'mensaje': 'Cuenta aprobada correctamente.'})
+
+
 class GoogleLoginView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -364,6 +404,91 @@ class GoogleLoginView(APIView):
         })
 
 
+class SolicitudSensorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        tipo_sensor = request.data.get('tipo_sensor')
+        perfil = obtener_perfil(request.user)
+
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden solicitar sensores.'}, status=status.HTTP_403_FORBIDDEN)
+        if not tipo_sensor:
+            return Response({'error': 'Debe indicar el tipo de sensor.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            send_mail(
+                subject='Solicitud de sensor - Tierra y Vida Smart',
+                message=(
+                    f'Hola Administrador,\n\n'
+                    f'El campesino {perfil.nombre} solicitó un sensor del tipo {tipo_sensor}.\n'
+                    f'Correo del campesino: {request.user.email}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL],
+                fail_silently=False,
+            )
+        except Exception:
+            logging.exception('Error al enviar correo de solicitud de sensor')
+
+        return Response({'mensaje': 'Solicitud enviada correctamente.'}, status=status.HTTP_201_CREATED)
+
+
+class SolicitudResiduoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'alcaldia':
+            return Response({'error': 'Solo la alcaldía puede ver las solicitudes de residuos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        solicitudes = (
+            SolicitudResiduo.objects.select_related('id_campesino', 'id_residuo')
+            .filter(estado='pendiente')
+            .order_by('-fecha_solicitud')
+        )
+
+        datos = []
+        for solicitud in solicitudes:
+            campesino_nombre = ''
+            if solicitud.id_campesino and solicitud.id_campesino.id_usuario:
+                campesino_nombre = solicitud.id_campesino.id_usuario.nombre
+
+            datos.append({
+                'id_solicitud_residuo': solicitud.id_solicitud_residuo,
+                'id_campesino': solicitud.id_campesino_id,
+                'campesino_nombre': campesino_nombre,
+                'id_residuo': solicitud.id_residuo_id,
+                'tipo_residuo': solicitud.id_residuo.tipo_residuo if solicitud.id_residuo else None,
+                'cantidad_kg': solicitud.id_residuo.cantidad_kg if solicitud.id_residuo else None,
+                'estado': solicitud.estado,
+                'fecha_solicitud': solicitud.fecha_solicitud,
+            })
+
+        return Response(datos, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        id_residuo = request.data.get('id_residuo')
+        perfil = obtener_perfil(request.user)
+
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden solicitar residuos.'}, status=status.HTTP_403_FORBIDDEN)
+        if not id_residuo:
+            return Response({'error': 'Debe seleccionar un residuo aprobado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        residuo = ResiduoOrganico.objects.filter(pk=id_residuo, estado='Disponible').first()
+        if residuo is None:
+            return Response({'error': 'No se encontró un residuo aprobado para solicitar.'}, status=status.HTTP_404_NOT_FOUND)
+
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        if campesino is None:
+            return Response({'error': 'No se encontró el perfil de campesino asociado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        SolicitudResiduo.objects.create(id_campesino=campesino, id_residuo=residuo, estado='pendiente')
+
+        return Response({'mensaje': 'Solicitud registrada para la alcaldía.'}, status=status.HTTP_201_CREATED)
+
+
 class PerfilView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -412,6 +537,18 @@ class ResiduoListCreateView(RolQuerysetMixin, ListCreateAPIView):
         serializer.save(id_contribuyente=contribuyente, estado='Pendiente')
 
 
+class ResiduoDisponibleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'No tienes permiso para consultar estos residuos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        residuos = ResiduoOrganico.objects.filter(estado='Disponible').values('id_residuo', 'tipo_residuo', 'cantidad_kg', 'estado')
+        return Response(list(residuos))
+
+
 class ResiduoDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = ResiduoOrganicoSerializer
     rol_requerido = 'contribuyente'
@@ -447,6 +584,36 @@ class SensorDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
         perfil = self.perfil_actual()
         campesino, _ = Campesino.objects.get_or_create(id_usuario=perfil)
         return Sensor.objects.filter(id_campesino=campesino)
+
+
+class MisAsignacionesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden ver sus asignaciones.'}, status=status.HTTP_403_FORBIDDEN)
+
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        if campesino is None:
+            return Response({'error': 'No se encontró el perfil de campesino asociado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        asignaciones = (
+            GestionLogistica.objects.filter(id_campesino=campesino)
+            .select_related('id_residuo')
+            .order_by('-fecha_asignacion', '-id_gestion')
+        )
+
+        datos = []
+        for asignacion in asignaciones:
+            datos.append({
+                'id_gestion': asignacion.id_gestion,
+                'tipo_residuo': asignacion.id_residuo.tipo_residuo if asignacion.id_residuo else None,
+                'cantidad_kg': asignacion.id_residuo.cantidad_kg if asignacion.id_residuo else None,
+                'fecha_asignacion': asignacion.fecha_asignacion,
+            })
+
+        return Response(datos, status=status.HTTP_200_OK)
 
 
 class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):

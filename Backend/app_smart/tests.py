@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 
-from .models import Campesino, Contribuyente, ResiduoOrganico, Usuario
+from .models import Campesino, Contribuyente, ResiduoOrganico, SolicitudResiduo, Usuario
 from .views import crear_token_verificacion
 
 
@@ -198,6 +198,58 @@ class CrudPorRolTests(APITestCase):
         self.assertEqual(crear.status_code, status.HTTP_201_CREATED)
         self.assertEqual(prohibido.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_campesino_puede_solicitar_sensor_y_envia_correo_admin(self):
+        user, perfil = self.crear_usuario('solicitante', 'Campesino')
+        Campesino.objects.create(id_usuario=perfil)
+        contrib_user, contrib_perfil = self.crear_usuario('donante', 'Contribuyente')
+        contribuyente = Contribuyente.objects.create(id_usuario=contrib_perfil)
+        residuo = ResiduoOrganico.objects.create(
+            id_contribuyente=contribuyente,
+            tipo_residuo='Restos vegetales',
+            cantidad_kg=20,
+            estado='Disponible',
+        )
+        self.client.force_authenticate(user)
+
+        respuesta = self.client.post(
+            reverse('solicitudes_sensor'),
+            {
+                'tipo_sensor': 'Humedad',
+                'id_residuo': residuo.id_residuo,
+            },
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Solicitud de sensor', mail.outbox[0].subject)
+
+    def test_campesino_solicita_residuo_y_queda_pendiente_para_alcaldia(self):
+        user, perfil = self.crear_usuario('campesino_residuo', 'Campesino')
+        campesino = Campesino.objects.create(id_usuario=perfil)
+        contrib_user, contrib_perfil = self.crear_usuario('donante', 'Contribuyente')
+        contribuyente = Contribuyente.objects.create(id_usuario=contrib_perfil)
+        residuo = ResiduoOrganico.objects.create(
+            id_contribuyente=contribuyente,
+            tipo_residuo='Restos vegetales',
+            cantidad_kg=20,
+            estado='Disponible',
+        )
+        _ = contrib_user
+        self.client.force_authenticate(user)
+
+        respuesta = self.client.post(
+            reverse('solicitudes_residuo'),
+            {'id_residuo': residuo.id_residuo},
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            SolicitudResiduo.objects.filter(id_campesino=campesino, id_residuo=residuo, estado='pendiente').exists()
+        )
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_alcaldia_asigna_residuo_a_campesino(self):
         contrib_user, contrib_perfil = self.crear_usuario('donante', 'Contribuyente')
         contribuyente = Contribuyente.objects.create(id_usuario=contrib_perfil)
@@ -227,3 +279,28 @@ class CrudPorRolTests(APITestCase):
         residuo.refresh_from_db()
         self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
         self.assertEqual(residuo.estado, 'Asignado')
+
+    def test_aprobacion_de_cuenta_activa_usuario_y_actualiza_estado(self):
+        admin = User.objects.create_user(
+            username='admin',
+            email='admin@example.com',
+            password='UnaClaveSegura123',
+            is_staff=True,
+        )
+        user, perfil = self.crear_usuario('pendiente', 'Campesino')
+        perfil.estado_cuenta = 'pendiente_aprobacion'
+        perfil.save(update_fields=['estado_cuenta'])
+        self.client.force_authenticate(admin)
+
+        respuesta = self.client.post(
+            reverse('aprobar_cuenta'),
+            {'usuario_id': user.pk},
+            format='json',
+        )
+
+        user.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertTrue(user.is_active)
+        self.assertEqual(perfil.estado_cuenta, 'aprobado')
+        self.assertEqual(len(mail.outbox), 1)

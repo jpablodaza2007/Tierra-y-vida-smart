@@ -12,6 +12,10 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}residuos/`);
   }
 
+  listarResiduosDisponibles(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}residuos-disponibles/`);
+  }
+
   crearResiduo(datos: any): Observable<any> {
     return this.http.post(`${this.API_URL}residuos/`, datos);
   }
@@ -40,8 +44,24 @@ export class CrudService {
     return this.http.delete<void>(`${this.API_URL}sensores/${id}/`);
   }
 
+  solicitarSensor(datos: any): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-sensor/`, datos);
+  }
+
+  solicitarResiduo(datos: any): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-residuo/`, datos);
+  }
+
+  listarSolicitudesResiduo(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}solicitudes-residuo/`);
+  }
+
   listarGestiones(): Observable<any[]> {
     return this.http.get<any[]>(`${this.API_URL}gestiones/`);
+  }
+
+  listarMisAsignaciones(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}mis-asignaciones/`);
   }
 
   crearGestion(datos: any): Observable<any> {

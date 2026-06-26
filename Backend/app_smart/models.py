@@ -33,6 +33,18 @@ class GestionLogistica(models.Model):
         db_table = 'gestion_logistica'
 
 
+class SolicitudResiduo(models.Model):
+    id_solicitud_residuo = models.AutoField(primary_key=True)
+    id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
+    id_residuo = models.ForeignKey('ResiduoOrganico', models.DO_NOTHING, db_column='id_residuo', blank=True, null=True)
+    estado = models.CharField(max_length=20, default='pendiente', blank=True)
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'solicitud_residuo'
+
+
 class LecturaSensor(models.Model):
     id_lectura = models.AutoField(primary_key=True)
     id_sensor = models.ForeignKey('Sensor', models.DO_NOTHING, db_column='id_sensor', blank=True, null=True)

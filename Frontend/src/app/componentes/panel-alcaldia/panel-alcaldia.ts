@@ -15,6 +15,7 @@ export class PanelAlcaldiaComponent implements OnInit {
   gestiones: any[] = [];
   residuos: any[] = [];
   campesinos: any[] = [];
+  solicitudesResiduo: any[] = [];
   editandoId: number | null = null;
   mensajeError = '';
   formulario = this.nuevoFormulario();
@@ -49,6 +50,10 @@ export class PanelAlcaldiaComponent implements OnInit {
         this.campesinos = datos.campesinos;
       }
     });
+    this.crud.listarSolicitudesResiduo().subscribe({
+      next: (datos) => this.solicitudesResiduo = datos,
+      error: () => this.mensajeError = 'No se pudieron cargar las solicitudes de residuos.'
+    });
   }
 
   guardar(): void {
@@ -72,6 +77,11 @@ export class PanelAlcaldiaComponent implements OnInit {
       id_campesino_id: gestion.campesino_id,
       fecha_asignacion: gestion.fecha_asignacion?.slice(0, 16) || ''
     };
+  }
+
+  seleccionarSolicitud(solicitud: any): void {
+    this.formulario.id_residuo_id = solicitud.id_residuo;
+    this.mensajeError = '';
   }
 
   eliminar(id: number): void {

@@ -9,43 +9,128 @@
   </header>
 
   <section class="panel">
-    <h2>{{ editandoId ? 'Editar sensor' : 'Agregar sensor' }}</h2>
-    <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
-      <label>Tipo de sensor
-        <select [(ngModel)]="tipoSensor" name="tipoSensor" required>
-          <option value="">Selecciona un tipo</option>
-          <option>Temperatura</option>
-          <option>Humedad</option>
-          <option>pH</option>
-          <option>Metano</option>
-          <option>Otro</option>
-        </select>
-      </label>
-      <div class="actions">
-        <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
-        @if (editandoId) {
-          <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
+    <div class="actions" style="margin-bottom: 16px;">
+      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'sensores'" (click)="cambiarSeccion('sensores')">Mis sensores</button>
+      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'solicitarSensor'" (click)="cambiarSeccion('solicitarSensor')">Solicitar sensores</button>
+      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'solicitarResiduo'" (click)="cambiarSeccion('solicitarResiduo')">Solicitar residuos</button>
+      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'materiales'" (click)="cambiarSeccion('materiales')">Material de apoyo</button>
+    </div>
+
+    @if (seccionActual === 'sensores') {
+      @if (mostrarFormularioSensor()) {
+        <h2>{{ editandoId ? 'Editar sensor' : 'Agregar sensor' }}</h2>
+        <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
+          <label>Tipo de sensor
+            <select [(ngModel)]="tipoSensor" name="tipoSensor" required>
+              <option value="">Selecciona un tipo</option>
+              <option>Temperatura</option>
+              <option>Humedad</option>
+              <option>pH</option>
+              <option>Metano</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
+            @if (editandoId) {
+              <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
+            }
+          </div>
+        </form>
+        @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+      } @else {
+        <p class="empty">Aún no tienes sensores registrados. Cuando el administrador apruebe tu solicitud, podrás administrarlos aquí.</p>
+      }
+
+      <h2 style="margin-top: 24px;">Mis sensores</h2>
+      <div class="card-grid">
+        @for (sensor of sensores; track sensor.id_sensor) {
+          <article class="item-card">
+            <span class="eyebrow">Sensor #{{ sensor.id_sensor }}</span>
+            <h3>{{ sensor.tipo_sensor }}</h3>
+            <div class="actions">
+              <button type="button" class="btn btn-small" (click)="editar(sensor)">Editar</button>
+              <button type="button" class="btn btn-danger btn-small" (click)="eliminar(sensor.id_sensor)">Eliminar</button>
+            </div>
+          </article>
+        } @empty {
+          <p class="empty">Aún no tienes sensores registrados.</p>
         }
       </div>
-    </form>
-    @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-  </section>
+    }
 
-  <section class="panel">
-    <h2>Mis sensores</h2>
-    <div class="card-grid">
-      @for (sensor of sensores; track sensor.id_sensor) {
-        <article class="item-card">
-          <span class="eyebrow">Sensor #{{ sensor.id_sensor }}</span>
-          <h3>{{ sensor.tipo_sensor }}</h3>
-          <div class="actions">
-            <button type="button" class="btn btn-small" (click)="editar(sensor)">Editar</button>
-            <button type="button" class="btn btn-danger btn-small" (click)="eliminar(sensor.id_sensor)">Eliminar</button>
+    @if (seccionActual === 'solicitarSensor') {
+      <h2>Solicitar sensor</h2>
+      <form class="form-grid" #solicitudForm="ngForm" (ngSubmit)="solicitarSensor()">
+        <label>Tipo de sensor
+          <select [(ngModel)]="solicitud.tipo_sensor" name="solicitudTipoSensor" required>
+            <option value="">Selecciona un tipo</option>
+            <option>Temperatura</option>
+            <option>Humedad</option>
+            <option>pH</option>
+            <option>Metano</option>
+            <option>Otro</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || solicitudSensorEnviada">Enviar solicitud</button>
+        </div>
+      </form>
+      @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+      @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
+    }
+
+    @if (seccionActual === 'solicitarResiduo') {
+      <h2>Solicitar residuos</h2>
+      <p>Estos residuos ya fueron aprobados por la alcaldía para su solicitud.</p>
+      <form class="form-grid" #residuoForm="ngForm" (ngSubmit)="solicitarResiduo()">
+        <label>Residuo aprobado
+          <select [(ngModel)]="solicitudResiduo.id_residuo" name="solicitudResiduo" required>
+            <option [ngValue]="null">Selecciona un residuo</option>
+            @for (residuo of residuosDisponibles; track residuo.id_residuo) {
+              <option [ngValue]="residuo.id_residuo">{{ residuo.tipo_residuo }} ({{ residuo.cantidad_kg }} kg)</option>
+            }
+          </select>
+        </label>
+        <div class="actions">
+          <button class="btn btn-primary" [disabled]="residuoForm.invalid || solicitudResiduoEnviada">Enviar solicitud</button>
+        </div>
+      </form>
+      @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+      @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
+
+      <h3 style="margin-top: 24px;">Mis Solicitudes Aceptadas / Asignaciones de la Alcaldía</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Residuo</th><th>Cantidad</th><th>Fecha</th></tr></thead>
+          <tbody>
+            @for (asignacion of asignaciones; track asignacion.id_gestion) {
+              <tr>
+                <td>{{ asignacion.tipo_residuo }}</td>
+                <td>{{ asignacion.cantidad_kg }} kg</td>
+                <td>{{ asignacion.fecha_asignacion }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">Aún no tienes asignaciones aprobadas por la alcaldía.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (seccionActual === 'materiales') {
+      <h2>Material de apoyo</h2>
+      <p>Consulta la guía práctica para el uso de sensores y residuos orgánicos.</p>
+      <div class="pdf-container" style="margin-top: 20px; border: 1px solid #ccc; border-radius: 8px; overflow: hidden;">
+        <object [data]="pdfUrlSegura" type="application/pdf" width="100%" height="700px">
+          <div style="padding: 20px; text-align: center;">
+            <p>Tu navegador no puede previsualizar el PDF de forma incrustada.</p>
+            <a [href]="pdfUrlSegura" target="_blank" class="btn btn-primary" style="padding: 10px 20px; background-color: #2b6cb0; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+              Ver o Descargar Guía PDF
+            </a>
           </div>
-        </article>
-      } @empty {
-        <p class="empty">Aún no tienes sensores registrados.</p>
-      }
-    </div>
+        </object>
+      </div>
+    }
   </section>
 </div>

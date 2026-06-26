@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
 
@@ -14,13 +15,17 @@ export class PanelContribuyenteComponent implements OnInit {
   residuos: any[] = [];
   editandoId: number | null = null;
   mensajeError = '';
+  seccionActual: 'registro' | 'materiales' | 'residuos' = 'registro';
   formulario = this.nuevoFormulario();
+  pdfUrlSegura: SafeResourceUrl = '';
 
   constructor(
     public auth: AuthService,
-    private crud: CrudService
+    private crud: CrudService,
+    private sanitizer: DomSanitizer
   ) {
     this.usuario = this.auth.obtenerUsuario();
+    this.pdfUrlSegura = this.sanitizer.bypassSecurityTrustResourceUrl('http://127.0.0.1:8000/media/materiales/Guia_Residuos-Solidos_Digital.pdf');
   }
 
   ngOnInit(): void {
@@ -48,6 +53,11 @@ export class PanelContribuyenteComponent implements OnInit {
     return null;
   }
 
+  cambiarSeccion(seccion: 'registro' | 'materiales' | 'residuos'): void {
+    this.seccionActual = seccion;
+    this.mensajeError = '';
+  }
+
   guardar(): void {
     const error = this.validarResiduo();
     if (error) {
@@ -62,6 +72,7 @@ export class PanelContribuyenteComponent implements OnInit {
     peticion.subscribe({
       next: () => {
         this.cancelar();
+        this.seccionActual = 'residuos';
         this.cargar();
       },
       error: (err) => {

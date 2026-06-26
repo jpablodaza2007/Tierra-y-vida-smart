@@ -43,6 +43,30 @@
   </section>
 
   <section class="panel">
+    <h2>Solicitudes de residuos</h2>
+    <p>Las solicitudes enviadas por los campesinos quedan disponibles aquí para que la alcaldía las revise y asigne.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campesino</th><th>Residuo</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          @for (solicitud of solicitudesResiduo; track solicitud.id_solicitud_residuo) {
+            <tr>
+              <td>{{ solicitud.campesino_nombre }}</td>
+              <td>{{ solicitud.tipo_residuo }} · {{ solicitud.cantidad_kg }} kg</td>
+              <td>{{ solicitud.estado }}</td>
+              <td class="actions">
+                <button type="button" class="btn btn-small" (click)="seleccionarSolicitud(solicitud)">Asignar</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">No hay solicitudes de residuos pendientes.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Asignaciones</h2>
     <div class="table-wrap">
       <table>
