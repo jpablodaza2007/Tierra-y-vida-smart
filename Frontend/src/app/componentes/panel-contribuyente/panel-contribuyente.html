@@ -13,6 +13,45 @@
       <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'registro'" (click)="cambiarSeccion('registro')">Registrar residuo</button>
       <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'materiales'" (click)="cambiarSeccion('materiales')">Material de apoyo</button>
       <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'residuos'" (click)="cambiarSeccion('residuos')">Mis residuos</button>
+    <h2>{{ editandoId ? 'Editar residuo' : 'Registrar residuo' }}</h2>
+    <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
+      <label>Tipo de residuo
+        <input [(ngModel)]="formulario.tipo_residuo" name="tipo" required placeholder="Ej. Restos de frutas">
+      </label>
+      <label>Cantidad (kg)
+        <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.cantidad_kg" name="cantidad" required>
+      </label>
+      <div class="actions">
+        <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
+        @if (editandoId) {
+          <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
+        }
+      </div>
+    </form>
+    @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+  </section>
+
+  <section class="panel">
+    <h2>Mis residuos</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tipo</th><th>Cantidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          @for (residuo of residuos; track residuo.id_residuo) {
+            <tr>
+              <td>{{ residuo.tipo_residuo }}</td>
+              <td>{{ residuo.cantidad_kg }} kg</td>
+              <td><span class="badge">{{ residuo.estado }}</span></td>
+              <td class="actions">
+                <button type="button" class="btn btn-small" (click)="editar(residuo)">Editar</button>
+                <button type="button" class="btn btn-danger btn-small" (click)="eliminar(residuo.id_residuo)">Eliminar</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">Aún no has registrado residuos.</td></tr>
+          }
+        </tbody>
+      </table>
     </div>
 
     @if (seccionActual === 'registro') {

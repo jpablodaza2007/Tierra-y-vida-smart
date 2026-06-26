@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
+from django.db import DatabaseError
 from django.utils.http import urlencode
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -61,14 +62,14 @@ def crear_token_verificacion(usuario):
     )
 
 
-def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, requiere_aprobacion=False, comprobante_url=None):
+def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, requiere_aprobacion=False, comprobante_url=None, destinatario=None):
     token = crear_token_verificacion(usuario)
     url = (
         f'{settings.FRONTEND_URL}/activar-cuenta?'
         f'{urlencode({"token": token})}'
     )
 
-    destinatario = settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL or usuario.email
+    destinatario = destinatario or (settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL or usuario.email)
 
     if requiere_aprobacion:
         mensaje = (
@@ -104,6 +105,29 @@ def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, re
         fail_silently=False,
     )
     return url
+
+
+def enviar_correo_aprobacion(usuario, *, nombre_usuario=None):
+    destinatario = getattr(usuario, 'email', None) or None
+    if not destinatario:
+        raise ValueError('No existe un correo electrónico para enviar la notificación.')
+
+    mensaje = (
+        f'Hola {nombre_usuario or usuario.first_name or usuario.username},\n\n'
+        'Tu cuenta en Tierra y Vida Smart ha sido verificada y habilitada con éxito.\n'
+        'Ya puedes iniciar sesión y acceder a tu panel.\n\n'
+        'Gracias por formar parte de nuestra plataforma.'
+    )
+    asunto = 'Cuenta verificada y habilitada - Tierra y Vida Smart'
+
+    send_mail(
+        subject=asunto,
+        message=mensaje,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[destinatario],
+        fail_silently=False,
+    )
+    return True
 
 
 class LoginView(TokenObtainPairView):
@@ -221,12 +245,20 @@ class RegistroUsuarioView(APIView):
                     comprobante_url = None
                     if comprobante:
                         comprobante_url = f"{request.build_absolute_uri('/')}{nuevo_usuario.comprobante_registro.url}" if nuevo_usuario.comprobante_registro else None
+
+                    destinatario_correo = (
+                        settings.ADMIN_NOTIFICATION_EMAIL
+                        if requiere_comprobante
+                        else email
+                    )
+
                     activacion_url = enviar_correo_verificacion(
                         usuario_auth,
                         rol=tipo_rol,
                         correo_solicitante=email,
                         requiere_aprobacion=requiere_comprobante,
                         comprobante_url=comprobante_url,
+                        destinatario=destinatario_correo,
                     )
                 except Exception as e:
                     logging.exception('Error al enviar correo de verificación')
@@ -292,13 +324,37 @@ class ActivarCuentaView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not usuario.is_active:
-            usuario.is_active = True
-            usuario.save(update_fields=['is_active'])
+        perfil = Usuario.objects.filter(correo__iexact=usuario.email).first()
+
+        if usuario.is_active and perfil and perfil.estado_cuenta == 'aprobado':
+            return Response({'mensaje': 'Tu cuenta fue activada correctamente.'})
+
+        with transaction.atomic():
+            if not usuario.is_active:
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+
+            if perfil is not None:
+                perfil.estado_cuenta = 'aprobado'
+                perfil.save(update_fields=['estado_cuenta'])
+
+            try:
+                enviar_correo_aprobacion(
+                    usuario,
+                    nombre_usuario=perfil.nombre if perfil else (usuario.first_name or usuario.username),
+                )
+            except Exception as exc:
+                logging.exception('Error al enviar correo de activación')
+                transaction.set_rollback(True)
+                return Response(
+                    {'error': 'No se pudo enviar el correo de activación. La cuenta no fue habilitada.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         return Response({'mensaje': 'Tu cuenta fue activada correctamente.'})
 
 
+<<<<<<< HEAD
 class AprobarCuentaView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
@@ -336,6 +392,65 @@ class AprobarCuentaView(APIView):
             logging.exception('Error al enviar correo de aprobación')
 
         return Response({'mensaje': 'Cuenta aprobada correctamente.'})
+=======
+class AprobarUsuarioView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id_usuario):
+        return self._aprobar_usuario(request, id_usuario)
+
+    def patch(self, request, id_usuario):
+        return self._aprobar_usuario(request, id_usuario)
+
+    def _aprobar_usuario(self, request, id_usuario):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response(
+                {'error': 'Solo el administrador puede aprobar cuentas.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            usuario_auth = User.objects.get(pk=id_usuario)
+            perfil = Usuario.objects.filter(correo__iexact=usuario_auth.email).first()
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'No se encontró el usuario solicitado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if perfil is None:
+            return Response(
+                {'error': 'No se encontró el perfil del usuario solicitado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if usuario_auth.is_active and perfil.estado_cuenta == 'aprobado':
+            return Response(
+                {'mensaje': 'La cuenta ya estaba aprobada.'},
+                status=status.HTTP_200_OK,
+            )
+
+        with transaction.atomic():
+            usuario_auth.is_active = True
+            usuario_auth.save(update_fields=['is_active'])
+            perfil.estado_cuenta = 'aprobado'
+            perfil.save(update_fields=['estado_cuenta'])
+
+            try:
+                enviar_correo_aprobacion(usuario_auth, nombre_usuario=perfil.nombre)
+            except Exception as exc:
+                logging.exception('Error al enviar correo de aprobación')
+                transaction.set_rollback(True)
+                return Response(
+                    {'error': 'No se pudo enviar el correo de aprobación. La cuenta no fue habilitada.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+        return Response(
+            {'mensaje': 'Cuenta aprobada y habilitada correctamente.'},
+            status=status.HTTP_200_OK,
+        )
+>>>>>>> 159b07744d0ceed1632d39f540113bd6d24f84b9
 
 
 class GoogleLoginView(APIView):
