@@ -1,0 +1,234 @@
+/* VARIABLES GLOBALES */
+:root {
+  --primary-green: #2ecc71;
+  --dark-bg: #0b131e;
+  --text-white: #ffffff;
+  --text-gray: #a0aec0;
+  --card-bg: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--dark-bg);
+  color: var(--text-white);
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* NAVBAR */
+.navbar {
+  background: var(--dark-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.nav-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+}
+.logo { font-size: 1.4rem; font-weight: 700; color: white; }
+.green-text { color: var(--primary-green); }
+.nav-links a {
+  color: var(--text-gray);
+  text-decoration: none;
+  margin-right: 25px;
+  font-size: 0.95rem;
+  transition: color 0.3s;
+}
+.nav-links a:hover { color: var(--primary-green); }
+.btn-nav {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* HERO SECTION (Estilo 7 Creativos Oscuro) */
+.hero {
+  padding: 100px 0;
+  background: radial-gradient(circle at top right, #142334 0%, var(--dark-bg) 70%);
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+  align-items: center;
+}
+.hero-text h1 {
+  font-size: 3.2rem;
+  line-height: 1.15;
+  margin-bottom: 20px;
+  font-weight: 800;
+}
+.hero-text .tagline {
+  color: var(--primary-green);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  font-size: 0.85rem;
+  margin-bottom: 15px;
+}
+.hero-text .description {
+  font-size: 1.1rem;
+  color: var(--text-gray);
+  line-height: 1.6;
+  margin-bottom: 35px;
+}
+.btn-main {
+  background: var(--primary-green);
+  color: white;
+  border: none;
+  padding: 15px 35px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.3s, background-color 0.3s;
+}
+.btn-main:hover {
+  background: #27ae60;
+  transform: translateY(-2px);
+}
+
+/* INTERFAZ MAC / DASHBOARD MOCKUP */
+.dashboard-mockup {
+  background: #111a24;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+.mockup-header {
+  background: #090f15;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; display: inline-block; }
+.red { background: #ff5f56; }
+.yellow { background: #ffbd2e; }
+.green { background: #27c93f; }
+.mockup-url { color: var(--text-gray); font-size: 0.8rem; margin-left: 20px; font-family: monospace; }
+.mockup-body { padding: 30px; }
+.chart-box { background: #172433; border-radius: 8px; padding: 25px; }
+.chart-title { font-size: 0.95rem; font-weight: 600; color: white; display: block; margin-bottom: 15px;}
+.stat-row { display: flex; gap: 12px; }
+.badge { padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.badge-green { background: rgba(46, 204, 113, 0.2); color: var(--primary-green); }
+.badge-dark { background: rgba(255,255,255,0.05); color: white; }
+.bar-chart-placeholder {
+  height: 100px;
+  margin-top: 25px;
+  background: linear-gradient(90deg, transparent 5px, #172433 5px), linear-gradient(0deg, var(--primary-green) 40%, transparent 40%);
+  background-size: 30px 100%;
+  border-radius: 4px;
+}
+
+/* SECCIÓN TARJETAS SEPARADAS (Fondo Blanco de Contraste) */
+.functions-section {
+  padding: 100px 0;
+  background: #f8fafc;
+  color: #1e293b;
+}
+.section-title {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 60px;
+  color: #0f172a;
+}
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 35px; /* <--- ESPACIO TOTAL ENTRE TARJETAS */
+}
+.card {
+  background: var(--card-bg);
+  padding: 40px 30px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(46, 204, 113, 0.15);
+}
+.card-icon-container {
+  font-size: 2.5rem;
+  color: var(--primary-green);
+  margin-bottom: 20px;
+}
+.card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 15px;
+}
+.card p {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+}
+.card.highlight {
+  border-top: 4px solid var(--primary-green);
+}
+
+/* SECCIÓN RUTA / TIMELINE */
+.roadmap { padding: 100px 0; background: var(--dark-bg); }
+.section-title-white { text-align: center; font-size: 2.5rem; font-weight: 800; margin-bottom: 80px; color: white; }
+.timeline { position: relative; }
+.line { position: absolute; top: 30px; left: 0; right: 0; height: 2px; background: rgba(46, 204, 113, 0.3); z-index: 1; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; z-index: 2; gap: 20px; }
+.step { text-align: center; }
+.dot-icon {
+  background: #111a24;
+  border: 2px solid var(--primary-green);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 1.3rem;
+  color: var(--primary-green);
+  box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
+}
+.step h4 { font-size: 1.15rem; margin-bottom: 10px; color: white; }
+.step p { font-size: 0.9rem; color: var(--text-gray); line-height: 1.5; padding: 0 10px; }
+
+/* FOOTER */
+.footer { background: #ffffff; color: #1e293b; padding: 60px 0; border-top: 1px solid #e2e8f0; }
+.footer-content { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+.footer-section h4 { font-size: 1rem; margin-bottom: 20px; color: #0f172a; font-weight: 700; }
+.footer-section p { font-size: 0.9rem; color: #64748b; margin-bottom: 8px; }
+.social-icons a { font-size: 1.3rem; color: #1e293b; margin-right: 15px; transition: color 0.3s; }
+.social-icons a:hover { color: var(--primary-green); }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .hero-grid, .steps, .footer-content { grid-template-columns: 1fr; gap: 40px; }
+  .hero-text h1 { font-size: 2.4rem; }
+  .line { display: none; }
+}

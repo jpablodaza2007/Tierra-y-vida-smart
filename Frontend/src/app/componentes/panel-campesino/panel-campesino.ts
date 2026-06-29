@@ -1,14 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
 
 @Component({
   selector: 'app-panel-campesino',
   standalone: true,
-  imports: [FormsModule],
-  templateUrl: './panel-campesino.html'
+  imports: [FormsModule, RouterLink],
+  templateUrl: './panel-campesino.html',
+  styleUrl: '../panels.css'
 })
 export class PanelCampesinoComponent implements OnInit {
   usuario;
@@ -20,7 +22,7 @@ export class PanelCampesinoComponent implements OnInit {
   mensajeExito = '';
   seccionActual: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo' = 'sensores';
   solicitud = { tipo_sensor: '' };
-  solicitudResiduo = { id_residuo: null as number | null };
+  solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, ubicacion: '' };
   solicitudSensorEnviada = false;
   solicitudResiduoEnviada = false;
   asignaciones: any[] = [];
@@ -109,8 +111,16 @@ export class PanelCampesinoComponent implements OnInit {
       return;
     }
 
-    if (!this.solicitudResiduo.id_residuo) {
-      this.mensajeError = 'Selecciona un residuo aprobado por la alcaldía.';
+    if (!this.solicitudResiduo.tipo_residuo?.trim()) {
+      this.mensajeError = 'Selecciona un tipo de residuo.';
+      return;
+    }
+    if (this.solicitudResiduo.cantidad_kg == null || Number(this.solicitudResiduo.cantidad_kg) <= 0) {
+      this.mensajeError = 'Ingresa la cantidad en kg que necesitas.';
+      return;
+    }
+    if (!this.solicitudResiduo.ubicacion?.trim()) {
+      this.mensajeError = 'Ingresa tu ubicación.';
       return;
     }
 

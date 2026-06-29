@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import signing
@@ -6,10 +7,11 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
+from django.db import DatabaseError
 from django.utils.http import urlencode
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
@@ -21,6 +23,7 @@ from .models import (
     Campesino,
     Contribuyente,
     GestionLogistica,
+    InventarioAlcaldia,
     ResiduoOrganico,
     Sensor,
     SolicitudResiduo,
@@ -61,14 +64,14 @@ def crear_token_verificacion(usuario):
     )
 
 
-def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, requiere_aprobacion=False, comprobante_url=None):
+def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, requiere_aprobacion=False, comprobante_url=None, destinatario=None):
     token = crear_token_verificacion(usuario)
     url = (
         f'{settings.FRONTEND_URL}/activar-cuenta?'
         f'{urlencode({"token": token})}'
     )
 
-    destinatario = settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL or usuario.email
+    destinatario = destinatario or (settings.ADMIN_NOTIFICATION_EMAIL or settings.DEFAULT_FROM_EMAIL or usuario.email)
 
     if requiere_aprobacion:
         mensaje = (
@@ -106,6 +109,29 @@ def enviar_correo_verificacion(usuario, *, rol=None, correo_solicitante=None, re
     return url
 
 
+def enviar_correo_aprobacion(usuario, *, nombre_usuario=None):
+    destinatario = getattr(usuario, 'email', None) or None
+    if not destinatario:
+        raise ValueError('No existe un correo electrónico para enviar la notificación.')
+
+    mensaje = (
+        f'Hola {nombre_usuario or usuario.first_name or usuario.username},\n\n'
+        'Tu cuenta en Tierra y Vida Smart ha sido verificada y habilitada con éxito.\n'
+        'Ya puedes iniciar sesión y acceder a tu panel.\n\n'
+        'Gracias por formar parte de nuestra plataforma.'
+    )
+    asunto = 'Cuenta verificada y habilitada - Tierra y Vida Smart'
+
+    send_mail(
+        subject=asunto,
+        message=mensaje,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[destinatario],
+        fail_silently=False,
+    )
+    return True
+
+
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
@@ -119,6 +145,7 @@ class RegistroUsuarioView(APIView):
         password = request.data.get('password')
         nombre_completo = request.data.get('nombre_completo')
         tipo_rol = request.data.get('tipo_rol')
+        ubicacion = request.data.get('ubicacion')
         comprobante = request.FILES.get('comprobante_registro')
 
         campos_faltantes = []
@@ -179,6 +206,12 @@ class RegistroUsuarioView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if tipo_rol_normalizado in {'campesino', 'contribuyente'} and not ubicacion:
+            return Response(
+                {"error": "La ubicación es obligatoria para Campesino y Contribuyente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if comprobante and not getattr(comprobante, 'name', '').lower().endswith(('.pdf', '.jpg', '.jpeg', '.png')):
             return Response(
                 {"error": "El comprobante debe ser un archivo PDF o imagen."},
@@ -212,6 +245,7 @@ class RegistroUsuarioView(APIView):
                     nombre=nombre_completo,
                     correo=email,
                     tipo_usuario=tipo_rol,
+                    ubicacion=ubicacion or '',
                     comprobante_registro=comprobante,
                     estado_cuenta=estado_cuenta,
                 )
@@ -221,12 +255,20 @@ class RegistroUsuarioView(APIView):
                     comprobante_url = None
                     if comprobante:
                         comprobante_url = f"{request.build_absolute_uri('/')}{nuevo_usuario.comprobante_registro.url}" if nuevo_usuario.comprobante_registro else None
+
+                    destinatario_correo = (
+                        settings.ADMIN_NOTIFICATION_EMAIL
+                        if requiere_comprobante
+                        else email
+                    )
+
                     activacion_url = enviar_correo_verificacion(
                         usuario_auth,
                         rol=tipo_rol,
                         correo_solicitante=email,
                         requiere_aprobacion=requiere_comprobante,
                         comprobante_url=comprobante_url,
+                        destinatario=destinatario_correo,
                     )
                 except Exception as e:
                     logging.exception('Error al enviar correo de verificación')
@@ -292,9 +334,32 @@ class ActivarCuentaView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not usuario.is_active:
-            usuario.is_active = True
-            usuario.save(update_fields=['is_active'])
+        perfil = Usuario.objects.filter(correo__iexact=usuario.email).first()
+
+        if usuario.is_active and perfil and perfil.estado_cuenta == 'aprobado':
+            return Response({'mensaje': 'Tu cuenta fue activada correctamente.'})
+
+        with transaction.atomic():
+            if not usuario.is_active:
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+
+            if perfil is not None:
+                perfil.estado_cuenta = 'aprobado'
+                perfil.save(update_fields=['estado_cuenta'])
+
+            try:
+                enviar_correo_aprobacion(
+                    usuario,
+                    nombre_usuario=perfil.nombre if perfil else (usuario.first_name or usuario.username),
+                )
+            except Exception as exc:
+                logging.exception('Error al enviar correo de activación')
+                transaction.set_rollback(True)
+                return Response(
+                    {'error': 'No se pudo enviar el correo de activación. La cuenta no fue habilitada.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         return Response({'mensaje': 'Tu cuenta fue activada correctamente.'})
 
@@ -336,6 +401,63 @@ class AprobarCuentaView(APIView):
             logging.exception('Error al enviar correo de aprobación')
 
         return Response({'mensaje': 'Cuenta aprobada correctamente.'})
+class AprobarUsuarioView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id_usuario):
+        return self._aprobar_usuario(request, id_usuario)
+
+    def patch(self, request, id_usuario):
+        return self._aprobar_usuario(request, id_usuario)
+
+    def _aprobar_usuario(self, request, id_usuario):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response(
+                {'error': 'Solo el administrador puede aprobar cuentas.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            usuario_auth = User.objects.get(pk=id_usuario)
+            perfil = Usuario.objects.filter(correo__iexact=usuario_auth.email).first()
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'No se encontró el usuario solicitado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if perfil is None:
+            return Response(
+                {'error': 'No se encontró el perfil del usuario solicitado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if usuario_auth.is_active and perfil.estado_cuenta == 'aprobado':
+            return Response(
+                {'mensaje': 'La cuenta ya estaba aprobada.'},
+                status=status.HTTP_200_OK,
+            )
+
+        with transaction.atomic():
+            usuario_auth.is_active = True
+            usuario_auth.save(update_fields=['is_active'])
+            perfil.estado_cuenta = 'aprobado'
+            perfil.save(update_fields=['estado_cuenta'])
+
+            try:
+                enviar_correo_aprobacion(usuario_auth, nombre_usuario=perfil.nombre)
+            except Exception as exc:
+                logging.exception('Error al enviar correo de aprobación')
+                transaction.set_rollback(True)
+                return Response(
+                    {'error': 'No se pudo enviar el correo de aprobación. La cuenta no fue habilitada.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+        return Response(
+            {'mensaje': 'Cuenta aprobada y habilitada correctamente.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 class GoogleLoginView(APIView):
@@ -443,7 +565,7 @@ class SolicitudResiduoView(APIView):
             return Response({'error': 'Solo la alcaldía puede ver las solicitudes de residuos.'}, status=status.HTTP_403_FORBIDDEN)
 
         solicitudes = (
-            SolicitudResiduo.objects.select_related('id_campesino', 'id_residuo')
+            SolicitudResiduo.objects.select_related('id_campesino')
             .filter(estado='pendiente')
             .order_by('-fecha_solicitud')
         )
@@ -458,9 +580,9 @@ class SolicitudResiduoView(APIView):
                 'id_solicitud_residuo': solicitud.id_solicitud_residuo,
                 'id_campesino': solicitud.id_campesino_id,
                 'campesino_nombre': campesino_nombre,
-                'id_residuo': solicitud.id_residuo_id,
-                'tipo_residuo': solicitud.id_residuo.tipo_residuo if solicitud.id_residuo else None,
-                'cantidad_kg': solicitud.id_residuo.cantidad_kg if solicitud.id_residuo else None,
+                'tipo_residuo': solicitud.tipo_residuo,
+                'cantidad_kg': solicitud.cantidad_kg,
+                'ubicacion': solicitud.ubicacion,
                 'estado': solicitud.estado,
                 'fecha_solicitud': solicitud.fecha_solicitud,
             })
@@ -468,23 +590,40 @@ class SolicitudResiduoView(APIView):
         return Response(datos, status=status.HTTP_200_OK)
 
     def post(self, request):
-        id_residuo = request.data.get('id_residuo')
+        tipo_residuo = request.data.get('tipo_residuo')
+        cantidad_kg = request.data.get('cantidad_kg')
+        ubicacion = request.data.get('ubicacion')
         perfil = obtener_perfil(request.user)
 
         if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
             return Response({'error': 'Solo los campesinos pueden solicitar residuos.'}, status=status.HTTP_403_FORBIDDEN)
-        if not id_residuo:
-            return Response({'error': 'Debe seleccionar un residuo aprobado.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not tipo_residuo:
+            return Response({'error': 'Debe seleccionar el tipo de residuo.'}, status=status.HTTP_400_BAD_REQUEST)
+        if tipo_residuo not in {'SECO', 'HUMEDO'}:
+            return Response({'error': 'Tipo de residuo inválido. Usa SECO o HUMEDO.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        residuo = ResiduoOrganico.objects.filter(pk=id_residuo, estado='Disponible').first()
-        if residuo is None:
-            return Response({'error': 'No se encontró un residuo aprobado para solicitar.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            cantidad_kg = float(cantidad_kg)
+        except (TypeError, ValueError):
+            cantidad_kg = None
+
+        if cantidad_kg is None or cantidad_kg <= 0:
+            return Response({'error': 'Debes indicar una cantidad en kg mayor a cero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ubicacion or not str(ubicacion).strip():
+            return Response({'error': 'La ubicación es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
 
         campesino = Campesino.objects.filter(id_usuario=perfil).first()
         if campesino is None:
             return Response({'error': 'No se encontró el perfil de campesino asociado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        SolicitudResiduo.objects.create(id_campesino=campesino, id_residuo=residuo, estado='pendiente')
+        SolicitudResiduo.objects.create(
+            id_campesino=campesino,
+            tipo_residuo=tipo_residuo,
+            cantidad_kg=cantidad_kg,
+            ubicacion=str(ubicacion).strip(),
+            estado='pendiente',
+        )
 
         return Response({'mensaje': 'Solicitud registrada para la alcaldía.'}, status=status.HTTP_201_CREATED)
 
@@ -503,6 +642,7 @@ class PerfilView(APIView):
             'nombre': perfil.nombre,
             'email': perfil.correo,
             'rol': perfil.tipo_usuario,
+            'ubicacion': perfil.ubicacion,
         })
 
 
@@ -534,7 +674,7 @@ class ResiduoListCreateView(RolQuerysetMixin, ListCreateAPIView):
     def perform_create(self, serializer):
         perfil = self.perfil_actual()
         contribuyente, _ = Contribuyente.objects.get_or_create(id_usuario=perfil)
-        serializer.save(id_contribuyente=contribuyente, estado='Pendiente')
+        serializer.save(id_contribuyente=contribuyente, estado='Pendiente', motivo_rechazo='')
 
 
 class ResiduoDisponibleView(APIView):
@@ -558,6 +698,74 @@ class ResiduoDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
         perfil = self.perfil_actual()
         contribuyente, _ = Contribuyente.objects.get_or_create(id_usuario=perfil)
         return ResiduoOrganico.objects.filter(id_contribuyente=contribuyente)
+
+
+class AuditoriaResiduoListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'alcaldia':
+            return Response({'error': 'Solo la alcaldia puede auditar residuos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        residuos = (
+            ResiduoOrganico.objects.select_related('id_contribuyente__id_usuario')
+            .filter(estado='Pendiente')
+            .order_by('-id_residuo')
+        )
+        return Response(ResiduoOrganicoSerializer(residuos, many=True).data, status=status.HTTP_200_OK)
+
+
+class AuditoriaResiduoDecisionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, id_residuo):
+        return self._decidir(request, id_residuo)
+
+    def post(self, request, id_residuo):
+        return self._decidir(request, id_residuo)
+
+    def _decidir(self, request, id_residuo):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'alcaldia':
+            return Response({'error': 'Solo la alcaldia puede auditar residuos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        decision = (request.data.get('estado') or request.data.get('decision') or '').strip().lower()
+        if decision in {'aceptar', 'aceptado'}:
+            estado_nuevo = 'Aceptado'
+        elif decision in {'rechazar', 'rechazado'}:
+            estado_nuevo = 'Rechazado'
+        else:
+            return Response({'error': 'La decision debe ser Aceptado o Rechazado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        motivo_rechazo = (request.data.get('motivo_rechazo') or '').strip()
+        if estado_nuevo == 'Rechazado' and not motivo_rechazo:
+            return Response({'error': 'El motivo de rechazo es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                residuo = (
+                    ResiduoOrganico.objects.select_for_update()
+                    .select_related('id_contribuyente__id_usuario')
+                    .get(pk=id_residuo)
+                )
+
+                if residuo.estado != 'Pendiente':
+                    return Response({'error': 'Este residuo ya fue auditado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                residuo.estado = estado_nuevo
+                residuo.motivo_rechazo = motivo_rechazo if estado_nuevo == 'Rechazado' else ''
+                residuo.save(update_fields=['estado', 'motivo_rechazo'])
+
+                if estado_nuevo == 'Aceptado':
+                    inventario, _ = InventarioAlcaldia.objects.select_for_update().get_or_create(tipo_residuo=residuo.tipo_residuo)
+                    inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) + Decimal(str(residuo.cantidad_kg))
+                    inventario.save(update_fields=['cantidad_total_kg'])
+
+        except ResiduoOrganico.DoesNotExist:
+            return Response({'error': 'No se encontro el residuo solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(ResiduoOrganicoSerializer(residuo).data, status=status.HTTP_200_OK)
 
 
 class SensorListCreateView(RolQuerysetMixin, ListCreateAPIView):
@@ -599,18 +807,31 @@ class MisAsignacionesView(APIView):
             return Response({'error': 'No se encontró el perfil de campesino asociado.'}, status=status.HTTP_404_NOT_FOUND)
 
         asignaciones = (
-            GestionLogistica.objects.filter(id_campesino=campesino)
-            .select_related('id_residuo')
+            GestionLogistica.objects.select_related('id_campesino__id_usuario')
+            .filter(id_campesino=campesino)
             .order_by('-fecha_asignacion', '-id_gestion')
         )
 
         datos = []
         for asignacion in asignaciones:
+            campesino_ubicacion = ''
+            campesino_nombre = ''
+            if asignacion.id_campesino and asignacion.id_campesino.id_usuario:
+                campesino_ubicacion = asignacion.id_campesino.id_usuario.ubicacion or ''
+                campesino_nombre = asignacion.id_campesino.id_usuario.nombre or ''
+            ubicacion_entrega = asignacion.ubicacion_entrega or campesino_ubicacion or ''
+
             datos.append({
                 'id_gestion': asignacion.id_gestion,
-                'tipo_residuo': asignacion.id_residuo.tipo_residuo if asignacion.id_residuo else None,
-                'cantidad_kg': asignacion.id_residuo.cantidad_kg if asignacion.id_residuo else None,
+                'tipo_residuo': asignacion.tipo_residuo,
+                'cantidad_kg': asignacion.cantidad_kg,
                 'fecha_asignacion': asignacion.fecha_asignacion,
+                'ubicacion_entrega': ubicacion_entrega,
+                'ubicacion': ubicacion_entrega or campesino_ubicacion,
+                'campesino': {
+                    'nombre': campesino_nombre,
+                    'ubicacion': campesino_ubicacion,
+                },
             })
 
         return Response(datos, status=status.HTTP_200_OK)
@@ -623,16 +844,92 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
     def get_queryset(self):
         self.perfil_actual()
         return GestionLogistica.objects.select_related(
-            'id_residuo',
             'id_campesino__id_usuario',
         ).order_by('-fecha_asignacion', '-id_gestion')
 
     def perform_create(self, serializer):
         perfil = self.perfil_actual()
-        gestion = serializer.save(id_usuario_alcaldia=perfil)
-        if gestion.id_residuo:
-            gestion.id_residuo.estado = 'Asignado'
-            gestion.id_residuo.save(update_fields=['estado'])
+        tipo_residuo = serializer.validated_data.get('tipo_residuo')
+        cantidad_kg = serializer.validated_data.get('cantidad_kg')
+        campesino = serializer.validated_data.get('id_campesino')
+
+        if not tipo_residuo or cantidad_kg is None:
+            raise serializers.ValidationError({'non_field_errors': ['Tipo de residuo y cantidad son obligatorios para la asignación.']})
+
+        ubicacion_entrega = ''
+        nombre_campesino = ''
+        if campesino and campesino.id_usuario:
+            ubicacion_entrega = campesino.id_usuario.ubicacion or ''
+            nombre_campesino = campesino.id_usuario.nombre or ''
+
+        ubicacion_solicitada = (
+            serializer.validated_data.get('ubicacion_entrega')
+            or self.request.data.get('ubicacion_entrega')
+            or self.request.data.get('ubicacion')
+            or ubicacion_entrega
+        )
+        ubicacion_entrega = str(ubicacion_solicitada or '').strip()
+
+        if not ubicacion_entrega:
+            raise serializers.ValidationError({
+                'ubicacion_entrega': ['La ubicación de entrega es obligatoria y debe venir del campesino seleccionado.']
+            })
+
+        inventario = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_residuo).first()
+        cantidad_a_restar = Decimal(str(cantidad_kg))
+        solicitud_id = self.request.data.get('solicitud_id') or self.request.data.get('id_solicitud_residuo')
+
+        if solicitud_id:
+            try:
+                solicitud_id = int(solicitud_id)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({'solicitud_id': ['El ID de la solicitud de residuo no es válido.']})
+
+        if inventario is None or Decimal(str(inventario.cantidad_total_kg)) < cantidad_a_restar:
+            raise serializers.ValidationError({'non_field_errors': ['Inventario insuficiente en la alcaldía para realizar esta asignación.']})
+
+        with transaction.atomic():
+            serializer.save(
+                id_usuario_alcaldia=perfil,
+                ubicacion_entrega=ubicacion_entrega,
+            )
+            inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) - cantidad_a_restar
+            inventario.save(update_fields=['cantidad_total_kg'])
+
+            if solicitud_id:
+                solicitud = (
+                    SolicitudResiduo.objects.select_for_update()
+                    .filter(id_solicitud_residuo=solicitud_id, estado='pendiente')
+                    .first()
+                )
+
+                if solicitud is None:
+                    raise serializers.ValidationError({'solicitud_id': ['La solicitud no existe o ya fue asignada.']})
+
+                if campesino and solicitud.id_campesino_id != campesino.id_campesino:
+                    raise serializers.ValidationError({'solicitud_id': ['La solicitud no pertenece al campesino seleccionado.']})
+
+                solicitud.estado = 'asignada'
+                solicitud.save(update_fields=['estado'])
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        gestion = serializer.instance
+        fecha_entrega = gestion.fecha_asignacion.strftime('%Y-%m-%d %H:%M') if gestion.fecha_asignacion else ''
+        nombre_campesino = ''
+        if gestion.id_campesino and gestion.id_campesino.id_usuario:
+            nombre_campesino = gestion.id_campesino.id_usuario.nombre or ''
+
+        mensaje = (
+            f'La alcaldía aceptó tu solicitud. Te va a entregar la cantidad de {gestion.cantidad_kg} kg de residuo '
+            f'{gestion.tipo_residuo} al campesino {nombre_campesino} el día {fecha_entrega} en la ubicación {gestion.ubicacion_entrega}.'
+        )
+
+        headers = self.get_success_headers(serializer.data)
+        return Response({'mensaje': mensaje, 'gestion': serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class GestionDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
@@ -643,28 +940,73 @@ class GestionDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         self.perfil_actual()
         return GestionLogistica.objects.select_related(
-            'id_residuo',
             'id_campesino__id_usuario',
         )
 
     def perform_update(self, serializer):
         gestion_anterior = self.get_object()
-        residuo_anterior = gestion_anterior.id_residuo
-        gestion = serializer.save(id_usuario_alcaldia=self.perfil_actual())
+        tipo_anterior = gestion_anterior.tipo_residuo
+        cantidad_anterior = gestion_anterior.cantidad_kg or 0
 
-        if residuo_anterior and residuo_anterior != gestion.id_residuo:
-            residuo_anterior.estado = 'Pendiente'
-            residuo_anterior.save(update_fields=['estado'])
-        if gestion.id_residuo:
-            gestion.id_residuo.estado = 'Asignado'
-            gestion.id_residuo.save(update_fields=['estado'])
+        tipo_nuevo = serializer.validated_data.get('tipo_residuo', tipo_anterior)
+        cantidad_nueva = serializer.validated_data.get('cantidad_kg', cantidad_anterior) or 0
+
+        if tipo_anterior == tipo_nuevo:
+            diferencia = cantidad_nueva - cantidad_anterior
+            if diferencia > 0:
+                inventario = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_nuevo).first()
+                if inventario is None or inventario.cantidad_total_kg < diferencia:
+                    raise serializers.ValidationError({'non_field_errors': ['Inventario insuficiente para aumentar la cantidad de esta asignación.']})
+        else:
+            inventario_nuevo = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_nuevo).first()
+            if inventario_nuevo is None or inventario_nuevo.cantidad_total_kg < cantidad_nueva:
+                raise serializers.ValidationError({'non_field_errors': ['Inventario insuficiente en el nuevo tipo de residuo para esta asignación.']})
+
+        ubicacion_solicitada = (
+            serializer.validated_data.get('ubicacion_entrega')
+            or self.request.data.get('ubicacion_entrega')
+            or self.request.data.get('ubicacion')
+            or gestion_anterior.ubicacion_entrega
+        )
+
+        if not ubicacion_solicitada:
+            campesino = serializer.validated_data.get('id_campesino', gestion_anterior.id_campesino)
+            if campesino and campesino.id_usuario:
+                ubicacion_solicitada = campesino.id_usuario.ubicacion or ''
+
+        with transaction.atomic():
+            gestion = serializer.save(
+                id_usuario_alcaldia=self.perfil_actual(),
+                ubicacion_entrega=str(ubicacion_solicitada or '').strip(),
+            )
+
+            if tipo_anterior == tipo_nuevo:
+                diferencia = cantidad_nueva - cantidad_anterior
+                if diferencia > 0:
+                    inventario = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_nuevo).first()
+                    inventario.cantidad_total_kg -= diferencia
+                    inventario.save(update_fields=['cantidad_total_kg'])
+                elif diferencia < 0:
+                    inventario, _ = InventarioAlcaldia.objects.get_or_create(tipo_residuo=tipo_nuevo)
+                    inventario.cantidad_total_kg += abs(diferencia)
+                    inventario.save(update_fields=['cantidad_total_kg'])
+            else:
+                inventario_anterior, _ = InventarioAlcaldia.objects.get_or_create(tipo_residuo=tipo_anterior)
+                inventario_anterior.cantidad_total_kg += cantidad_anterior
+                inventario_anterior.save(update_fields=['cantidad_total_kg'])
+
+                inventario_nuevo = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_nuevo).first()
+                inventario_nuevo.cantidad_total_kg -= cantidad_nueva
+                inventario_nuevo.save(update_fields=['cantidad_total_kg'])
 
     def perform_destroy(self, instance):
-        residuo = instance.id_residuo
+        tipo_residuo = instance.tipo_residuo
+        cantidad_kg = instance.cantidad_kg or 0
+        if tipo_residuo and cantidad_kg > 0:
+            inventario, _ = InventarioAlcaldia.objects.get_or_create(tipo_residuo=tipo_residuo)
+            inventario.cantidad_total_kg += cantidad_kg
+            inventario.save(update_fields=['cantidad_total_kg'])
         instance.delete()
-        if residuo:
-            residuo.estado = 'Pendiente'
-            residuo.save(update_fields=['estado'])
 
 
 class OpcionesLogisticaView(APIView):
@@ -684,14 +1026,34 @@ class OpcionesLogisticaView(APIView):
         campesinos = Campesino.objects.select_related('id_usuario').values(
             'id_campesino',
             'id_usuario__nombre',
+            'id_usuario__ubicacion',
+            'id_usuario__tipo_usuario',
         )
         return Response({
             'residuos': list(residuos),
             'campesinos': [
                 {
-                    'id_campesino': item['id_campesino'],
+                    'id': item['id_campesino'],
+                    'username': item['id_usuario__nombre'],
                     'nombre': item['id_usuario__nombre'],
+                    'ubicacion': item['id_usuario__ubicacion'] or '',
+                    'tipo_rol': item['id_usuario__tipo_usuario'],
                 }
                 for item in campesinos
             ],
         })
+
+
+class InventarioAlcaldiaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'alcaldia':
+            return Response(
+                {'error': 'Solo la alcaldía puede consultar el inventario.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        inventarios = InventarioAlcaldia.objects.all().values('tipo_residuo', 'cantidad_total_kg')
+        return Response(list(inventarios), status=status.HTTP_200_OK)

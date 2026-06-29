@@ -1,38 +1,105 @@
-<div class="dashboard">
-  <header class="dashboard-header">
-    <div>
-      <span class="eyebrow">Contribuyente</span>
+<div class="contribuyente-page">
+  <nav class="panel-navbar">
+    <div class="navbar-brand">
+      <span class="green-text">Tierra y Vida</span> Smart
+    </div>
+
+    <div class="navbar-actions">
+      <a class="nav-section-link" [routerLink]="[]" fragment="registrar-residuo">Registrar Residuo</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="mis-residuos">Mis Residuos</a>
+      <a class="nav-section-link" routerLink="/material-apoyo">Material de Apoyo</a>
+      <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesion</button>
+    </div>
+  </nav>
+
+  <main class="dashboard">
+    <header class="page-greeting">
       <h1>Hola, {{ usuario?.nombre || 'Contribuyente' }}</h1>
-      <p>Registra y administra los residuos orgánicos que entregarás.</p>
-    </div>
-    <button type="button" class="btn btn-outline" (click)="auth.cerrarSesion()">Cerrar sesión</button>
-  </header>
+    </header>
 
-  <section class="panel">
-    <div class="actions" style="margin-bottom: 16px;">
-      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'registro'" (click)="cambiarSeccion('registro')">Registrar residuo</button>
-      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'materiales'" (click)="cambiarSeccion('materiales')">Material de apoyo</button>
-      <button type="button" class="btn btn-small" [class.btn-primary]="seccionActual === 'residuos'" (click)="cambiarSeccion('residuos')">Mis residuos</button>
-    </div>
+    <section id="registrar-residuo" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Residuos organicos</span>
+        <h2>{{ editandoId ? 'Editar residuo' : 'Registrar residuo' }}</h2>
+        <p>Registra el residuo con su diagnostico de calidad. La Alcaldia lo auditara antes de sumarlo al inventario central.</p>
+      </div>
 
-    @if (seccionActual === 'registro') {
-      <h2>{{ editandoId ? 'Editar residuo' : 'Registrar residuo' }}</h2>
       <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
         <label>Tipo de residuo
-          <input [(ngModel)]="formulario.tipo_residuo" name="tipo" required placeholder="Ej. Restos de frutas">
+          <select [(ngModel)]="formulario.tipo_residuo" name="tipo" required>
+            <option value="">Selecciona un tipo</option>
+            <option value="SECO">Residuo Seco</option>
+            <option value="HUMEDO">Residuo Humedo</option>
+          </select>
         </label>
+
         <label>Cantidad (kg)
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.cantidad_kg" name="cantidad" required>
         </label>
-        @if (editandoId) {
-          <label>Estado
-            <select [(ngModel)]="formulario.estado" name="estado">
-              <option>Pendiente</option>
-              <option>Asignado</option>
-              <option>Recolectado</option>
-            </select>
-          </label>
-        }
+
+        <label>Ubicacion (direccion / barrio)
+          <input [(ngModel)]="formulario.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
+        </label>
+
+        <label>Dias de almacenamiento
+          <input type="number" min="0" step="1" [(ngModel)]="formulario.dias_almacenamiento" name="dias_almacenamiento" required>
+        </label>
+
+        <label>Metodo de conservacion
+          <select [(ngModel)]="formulario.metodo_conservacion" name="metodo_conservacion" required>
+            <option value="">Selecciona un metodo</option>
+            <option value="Heladera">Heladera</option>
+            <option value="Freezer">Freezer</option>
+            <option value="Tacho cerrado a temperatura ambiente">Tacho cerrado a temperatura ambiente</option>
+          </select>
+        </label>
+
+        <label>Presencia de citricos
+          <select [(ngModel)]="formulario.presencia_citricos" name="presencia_citricos" required>
+            <option value="">Selecciona cantidad</option>
+            <option value="Ninguna">Ninguna</option>
+            <option value="Baja">Baja</option>
+            <option value="Media">Media</option>
+            <option value="Alta">Alta</option>
+          </select>
+        </label>
+
+        <label>Presencia de plagas
+          <select [(ngModel)]="formulario.presencia_plagas" name="presencia_plagas" required>
+            <option value="">Selecciona condicion</option>
+            <option value="Ninguna">Ninguna</option>
+            <option value="Larvas/Moscas">Larvas/Moscas</option>
+            <option value="Moho negro">Moho negro</option>
+          </select>
+        </label>
+
+        <label>Tamano del material
+          <select [(ngModel)]="formulario.tamano_picado" name="tamano_picado" required>
+            <option value="">Selecciona formato</option>
+            <option value="Entero">Entero</option>
+            <option value="Troceado/Picado">Troceado/Picado</option>
+          </select>
+        </label>
+
+        <label class="form-grid-full">Materiales incluidos
+          <textarea [(ngModel)]="formulario.lista_materiales" name="lista_materiales" required placeholder="Ej. cascaras de papa, hojas de lechuga, restos de fruta"></textarea>
+        </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="formulario.presencia_procesados" name="presencia_procesados" required>
+          Libre de sal, aceite, aderezos o comida cocinada
+        </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="formulario.ausencia_origen_animal" name="ausencia_origen_animal" required>
+          100% libre de carnes, lacteos o grasas
+        </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="formulario.bolsa_compostable" name="bolsa_compostable">
+          Bolsa compostable certificada
+        </label>
+
         <div class="actions">
           <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
           @if (editandoId) {
@@ -40,46 +107,55 @@
           }
         </div>
       </form>
+
       @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-    }
+    </section>
 
-    @if (seccionActual === 'materiales') {
-      <h2>Material de apoyo</h2>
-      <p>Consulta la guía de residuos orgánicos y buenas prácticas.</p>
-      <div class="pdf-container" style="margin-top: 20px; border: 1px solid #ccc; border-radius: 8px; overflow: hidden;">
-        <object [data]="pdfUrlSegura" type="application/pdf" width="100%" height="700px">
-          <div style="padding: 20px; text-align: center;">
-            <p>Tu navegador no puede previsualizar el PDF de forma incrustada.</p>
-            <a [href]="pdfUrlSegura" target="_blank" class="btn btn-primary" style="padding: 10px 20px; background-color: #2b6cb0; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
-              Ver o Descargar Guía PDF
-            </a>
-          </div>
-        </object>
+    <section id="mis-residuos" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Historial</span>
+        <h2>Mis residuos</h2>
+        <p>Consulta el estado de tus solicitudes de residuo y el motivo cuando una sea rechazada.</p>
       </div>
-    }
 
-    @if (seccionActual === 'residuos') {
-      <h2>Mis residuos</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Tipo</th><th>Cantidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
           <tbody>
             @for (residuo of residuos; track residuo.id_residuo) {
               <tr>
                 <td>{{ residuo.tipo_residuo }}</td>
                 <td>{{ residuo.cantidad_kg }} kg</td>
-                <td><span class="badge">{{ residuo.estado }}</span></td>
+                <td>
+                  <span class="badge">{{ residuo.estado }}</span>
+                  @if (residuo.estado === 'Rechazado') {
+                    <button
+                      type="button"
+                      class="warning-icon"
+                      [title]="residuo.motivo_rechazo || 'Sin motivo registrado'"
+                    >&#9888;</button>
+                  }
+                </td>
                 <td class="actions">
                   <button type="button" class="btn btn-small" (click)="editar(residuo)">Editar</button>
                   <button type="button" class="btn btn-danger btn-small" (click)="eliminar(residuo.id_residuo)">Eliminar</button>
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="4" class="empty">Aún no has registrado residuos.</td></tr>
+              <tr>
+                <td colspan="4" class="empty">Aun no has registrado residuos.</td>
+              </tr>
             }
           </tbody>
         </table>
       </div>
-    }
-  </section>
+    </section>
+  </main>
 </div>

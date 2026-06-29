@@ -1,0 +1,150 @@
+<nav class="navbar">
+  <div class="container nav-content">
+    <div class="logo">
+      <span class="green-text">Tierra y Vida</span> Smart
+    </div>
+    <div class="nav-links">
+      <button type="button" class="nav-section-link" (click)="scrollToSection('inicio')">Inicio</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('funciones')">Funciones</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('ruta')">Nuestra Ruta</button>
+      <a routerLink="/registro" class="btn-crear-cuenta">Crear Cuenta</a>
+      <button class="btn-nav" routerLink="/login">Iniciar Sesión</button>
+    </div>
+  </div>
+</nav>
+
+<header id="inicio" class="hero">
+  <div class="container hero-grid-center">
+    <div class="hero-text">
+      <p class="tagline">DESARROLLO ECOLÓGICO INTELIGENTE</p>
+      <h1>
+        Tu cultivo no debe ser solo una parcela.
+        <span class="green-text">Debe vender confianza.</span>
+      </h1>
+      <p class="description">
+        Plataforma web inteligente que conecta restaurantes, plazas de
+        mercado y colegios ecológicos con el campo en Mosquera,
+        Cundinamarca. Optimizamos la gestión de residuos orgánicos y
+        automatizamos el monitoreo de cultivos para un agro más sostenible.
+      </p>
+      <button class="btn-main" routerLink="/login">Empezar Ahora</button>
+    </div>
+  </div>
+</header>
+
+<section id="funciones" class="functions-section">
+  <div class="container">
+    <h2 class="section-title">
+      Nuestras <span class="green-text">Funciones Especializadas</span>
+    </h2>
+
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-icon-container">
+          <i class="fa-solid fa-store-slash"></i>
+        </div>
+        <h3>EL PROBLEMA</h3>
+        <p>
+          Desafíos críticos en la gestión de residuos orgánicos como un gran desperdicio en diferentes lugares en Mosquera cundinamarca.
+          Falta de logística para recolección eficiente.
+        </p>
+      </div>
+
+      <div class="card highlight">
+        <div class="card-icon-container">
+          <i class="fa-solid fa-microchip"></i>
+        </div>
+        <h3>NUESTRA SOLUCIÓN</h3>
+        <p>
+          Una plataforma web inteligente que gestiona la recolección
+          logística en restaurantes, plazas de mercado, colegios y conecta de forma directa con los
+          campesinos.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon-container">
+          <i class="fa-solid fa-arrows-spin"></i>
+        </div>
+        <h3>CÓMO FUNCIONA</h3>
+        <p>
+          Recolectamos con lugares que desechan residuos orgánicos ➔ Procesamos los residuos ➔
+          Entregamos a campesinos por un precio justo.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon-container">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <h3>IMPACTO</h3>
+        <p>
+          Mejoramos la fertilidad del suelo, reducimos la contaminación
+          ambiental y optimizamos cultivos mediante el análisis de datos.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ruta" class="roadmap">
+  <div class="container">
+    <h2 class="section-title-white">
+      Nuestra ruta para <span class="green-text">construir el cambio</span>
+    </h2>
+    <div class="timeline">
+      <div class="line"></div>
+      <div class="steps">
+        <div class="step">
+          <div class="dot-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          <h4>Diagnóstico</h4>
+          <p>Evaluación de residuos orgánicos de diversos lugares.</p>
+        </div>
+        <div class="step">
+          <div class="dot-icon"><i class="fa-solid fa-route"></i></div>
+          <h4>Recolección</h4>
+          <p>Logística y transporte programado en Mosquera.</p>
+        </div>
+        <div class="step">
+          <div class="dot-icon"><i class="fa-solid fa-tractor"></i></div>
+          <h4>Entrega</h4>
+          <p>Suministro de abono orgánico procesado a campesinos.</p>
+        </div>
+        <div class="step">
+          <div class="dot-icon"><i class="fa-solid fa-chart-line"></i></div>
+          <h4>Monitoreo</h4>
+          <p>Seguimiento inteligente del rendimiento del cultivo.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container footer-content">
+    <div class="footer-section">
+      <h4><i class="fa-solid fa-phone"></i> Contacto</h4>
+      <p>323 210 5825</p>
+      <p>info@tierrayvidasmart.com</p>
+    </div>
+    <div class="footer-section">
+      <h4><i class="fa-solid fa-location-dot"></i> Ubicación</h4>
+      <p>Mosquera, Cundinamarca</p>
+      <p>Colombia</p>
+    </div>
+    <div class="footer-section">
+      <h4><i class="fa-solid fa-shield-halved"></i> Legal</h4>
+      <p>Política de tratamiento de datos</p>
+    </div>
+    <div class="footer-section">
+      <h4><i class="fa-solid fa-share-nodes"></i> Síguenos</h4>
+      <div class="social-icons">
+        <a href="#"><i class="fa-brands fa-instagram"></i></a>
+        <a href="#"><i class="fa-brands fa-facebook"></i></a>
+        <a href="#"><i class="fa-brands fa-linkedin"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,63 @@
+.auth-page {
+  width: 100vw;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 96px 20px 30px;
+  box-sizing: border-box;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+    url('https://cdn.pixabay.com/photo/2021/05/27/20/53/field-6289253_1280.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.navbar-interna {
+  background: #0b131e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.nav-content-interna {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+}
+
+.logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ffffff !important;
+  font-family: 'Inter', sans-serif;
+}
+
+.green-text {
+  color: #2ecc71 !important;
+}
+
+.btn-nav {
+  background: transparent;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.btn-nav:hover {
+  background: white;
+  color: #0b131e !important;
+}

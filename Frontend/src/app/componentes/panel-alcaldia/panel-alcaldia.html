@@ -1,92 +1,256 @@
-<div class="dashboard">
-  <header class="dashboard-header">
-    <div>
-      <span class="eyebrow">Alcaldía</span>
-      <h1>Gestión logística</h1>
-      <p>Asigna residuos pendientes a los campesinos disponibles.</p>
+<div class="alcaldia-page">
+  <nav class="panel-navbar">
+    <div class="navbar-brand">
+      <span class="green-text">Tierra y Vida</span> Smart
     </div>
-    <button type="button" class="btn btn-outline" (click)="auth.cerrarSesion()">Cerrar sesión</button>
-  </header>
 
-  <section class="panel">
-    <h2>{{ editandoId ? 'Editar asignación' : 'Nueva asignación' }}</h2>
-    <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
-      <label>Residuo
-        <select [(ngModel)]="formulario.id_residuo_id" name="residuo" required>
-          <option [ngValue]="null">Selecciona un residuo</option>
-          @for (residuo of residuos; track residuo.id_residuo) {
-            <option [ngValue]="residuo.id_residuo">
-              #{{ residuo.id_residuo }} - {{ residuo.tipo_residuo }} ({{ residuo.cantidad_kg }} kg)
-            </option>
-          }
-        </select>
-      </label>
-      <label>Campesino
-        <select [(ngModel)]="formulario.id_campesino_id" name="campesino" required>
-          <option [ngValue]="null">Selecciona un campesino</option>
-          @for (campesino of campesinos; track campesino.id_campesino) {
-            <option [ngValue]="campesino.id_campesino">{{ campesino.nombre }}</option>
-          }
-        </select>
-      </label>
-      <label>Fecha de asignación
-        <input type="datetime-local" [(ngModel)]="formulario.fecha_asignacion" name="fecha" required>
-      </label>
-      <div class="actions">
-        <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
-        @if (editandoId) {
-          <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
-        }
+    <div class="navbar-actions">
+      <a class="nav-section-link" [routerLink]="[]" fragment="nueva-asignacion">Nueva Asignacion</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="inventario-central">Inventario Central</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="auditoria-residuos">Auditoria</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="solicitudes-residuos">Solicitudes de Residuos</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="asignaciones-historial">Asignaciones</a>
+      <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesion</button>
+    </div>
+  </nav>
+
+  <main class="dashboard">
+    <header class="page-greeting">
+      <h1>Hola, Alcaldia</h1>
+    </header>
+
+    <section id="nueva-asignacion" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Gestion logistica</span>
+        <h2>{{ editandoId ? 'Editar asignacion' : 'Nueva asignacion' }}</h2>
+        <p>Asigna residuos disponibles a campesinos registrados y define la fecha de entrega.</p>
       </div>
-    </form>
-    @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-  </section>
 
-  <section class="panel">
-    <h2>Solicitudes de residuos</h2>
-    <p>Las solicitudes enviadas por los campesinos quedan disponibles aquí para que la alcaldía las revise y asigne.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Campesino</th><th>Residuo</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody>
-          @for (solicitud of solicitudesResiduo; track solicitud.id_solicitud_residuo) {
-            <tr>
-              <td>{{ solicitud.campesino_nombre }}</td>
-              <td>{{ solicitud.tipo_residuo }} · {{ solicitud.cantidad_kg }} kg</td>
-              <td>{{ solicitud.estado }}</td>
-              <td class="actions">
-                <button type="button" class="btn btn-small" (click)="seleccionarSolicitud(solicitud)">Asignar</button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="4" class="empty">No hay solicitudes de residuos pendientes.</td></tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </section>
+      <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
+        <label>Tipo de residuo
+          <select [(ngModel)]="formAsignacion.tipo_residuo" name="tipo_residuo" required>
+            <option [ngValue]="''">Selecciona tipo</option>
+            <option [ngValue]="'SECO'">SECO</option>
+            <option [ngValue]="'HUMEDO'">HUMEDO</option>
+          </select>
+        </label>
 
-  <section class="panel">
-    <h2>Asignaciones</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Residuo</th><th>Campesino</th><th>Fecha</th><th>Acciones</th></tr></thead>
-        <tbody>
-          @for (gestion of gestiones; track gestion.id_gestion) {
-            <tr>
-              <td>{{ gestion.residuo.tipo_residuo }} · {{ gestion.residuo.cantidad_kg }} kg</td>
-              <td>{{ gestion.campesino_nombre }}</td>
-              <td>{{ gestion.fecha_asignacion | date:'medium' }}</td>
-              <td class="actions">
-                <button type="button" class="btn btn-small" (click)="editar(gestion)">Editar</button>
-                <button type="button" class="btn btn-danger btn-small" (click)="eliminar(gestion.id_gestion)">Eliminar</button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="4" class="empty">No hay asignaciones creadas.</td></tr>
+        <label>Cantidad (kg)
+          <input type="number" min="0.01" step="0.01" [(ngModel)]="formAsignacion.cantidad_kg" name="cantidad_kg" required>
+        </label>
+
+        <label>Campesino
+          <select [(ngModel)]="formAsignacion.id_campesino" (change)="onCampesinoChange($event)" name="campesino" class="form-control" required>
+            <option value="" disabled>Selecciona un campesino</option>
+            @for (c of campesinos; track obtenerIdCampesino(c)) {
+              <option [value]="obtenerIdCampesino(c)">{{ obtenerNombreCampesino(c) }}</option>
+            }
+          </select>
+        </label>
+
+        <label>Fecha de asignacion
+          <input type="datetime-local" [(ngModel)]="formAsignacion.fecha_asignacion" name="fecha_asignacion" required>
+        </label>
+
+        <label>Ubicacion de entrega
+          <input type="text" [(ngModel)]="formAsignacion.ubicacion" name="ubicacion" readonly placeholder="Se completa al elegir campesino">
+        </label>
+
+        <div class="actions">
+          <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
+          @if (editandoId) {
+            <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
           }
-        </tbody>
-      </table>
-    </div>
-  </section>
+        </div>
+      </form>
+
+      @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
+      @if (mensajeExitoDatos) {
+        <p class="success">
+          Aceptaste la solicitud. Se va a entregar la cantidad de {{ mensajeExitoDatos.cantidad }} kg de residuo {{ mensajeExitoDatos.tipo }} al campesino {{ mensajeExitoDatos.nombre }} el dia {{ mensajeExitoDatos.fecha }} en la ubicacion {{ formAsignacion.ubicacion || mensajeExitoDatos.ubicacion || 'Barrio' }}.
+        </p>
+      }
+      @if (mensajeExito && !mensajeExitoDatos) { <p class="success">{{ mensajeExito }}</p> }
+    </section>
+
+    <section id="inventario-central" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Existencias disponibles</span>
+        <h2>Inventario central de la alcaldia</h2>
+        <p>Consulta la cantidad acumulada por tipo de residuo antes de crear nuevas asignaciones.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de residuo</th>
+              <th>Cantidad disponible (kg)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of inventario; track item.tipo_residuo) {
+              <tr>
+                <td>{{ item.tipo_residuo }}</td>
+                <td>{{ item.cantidad_total_kg }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="2" class="empty">No hay inventario registrado.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="auditoria-residuos" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Calidad de residuos</span>
+        <h2>Auditoria de residuos de contribuyentes</h2>
+        <p>Revisa el diagnostico antes de aceptar el residuo en el inventario central o rechazarlo con motivo visible.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Contribuyente</th>
+              <th>Residuo</th>
+              <th>Ubicacion</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (residuo of residuosAuditoria; track residuo.id_residuo) {
+              <tr>
+                <td>{{ residuo.contribuyente_nombre || 'Contribuyente' }}</td>
+                <td>{{ residuo.tipo_residuo }} &middot; {{ residuo.cantidad_kg }} kg</td>
+                <td>{{ residuo.ubicacion }}</td>
+                <td><span class="badge">{{ residuo.estado }}</span></td>
+                <td class="actions">
+                  <button type="button" class="btn btn-small" (click)="verDiagnostico(residuo)">Ver Diagnostico</button>
+                  <button type="button" class="btn btn-primary btn-small" (click)="aceptarResiduo(residuo)">Aceptar</button>
+                  <button type="button" class="btn btn-danger btn-small" (click)="rechazarResiduo(residuo)">Rechazar</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="empty">No hay residuos pendientes de auditoria.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    @if (diagnosticoSeleccionado) {
+      <div class="modal-backdrop">
+        <div class="diagnostic-modal">
+          <div class="modal-header">
+            <h3>Diagnostico del residuo</h3>
+            <button type="button" class="modal-close" (click)="cerrarDiagnostico()">&times;</button>
+          </div>
+
+          <dl class="diagnostic-grid">
+            <div><dt>Tipo</dt><dd>{{ diagnosticoSeleccionado.tipo_residuo }}</dd></div>
+            <div><dt>Cantidad</dt><dd>{{ diagnosticoSeleccionado.cantidad_kg }} kg</dd></div>
+            <div><dt>Dias almacenado</dt><dd>{{ diagnosticoSeleccionado.dias_almacenamiento }}</dd></div>
+            <div><dt>Conservacion</dt><dd>{{ diagnosticoSeleccionado.metodo_conservacion }}</dd></div>
+            <div class="diagnostic-wide"><dt>Materiales</dt><dd>{{ diagnosticoSeleccionado.lista_materiales }}</dd></div>
+            <div><dt>Citricos</dt><dd>{{ diagnosticoSeleccionado.presencia_citricos }}</dd></div>
+            <div><dt>Libre de procesados</dt><dd>{{ diagnosticoSeleccionado.presencia_procesados ? 'Si' : 'No' }}</dd></div>
+            <div><dt>Libre de origen animal</dt><dd>{{ diagnosticoSeleccionado.ausencia_origen_animal ? 'Si' : 'No' }}</dd></div>
+            <div><dt>Plagas</dt><dd>{{ diagnosticoSeleccionado.presencia_plagas }}</dd></div>
+            <div><dt>Bolsa compostable</dt><dd>{{ diagnosticoSeleccionado.bolsa_compostable ? 'Si' : 'No' }}</dd></div>
+            <div><dt>Tamano</dt><dd>{{ diagnosticoSeleccionado.tamano_picado }}</dd></div>
+          </dl>
+
+          <div class="actions">
+            <button type="button" class="btn btn-primary" (click)="aceptarResiduo(diagnosticoSeleccionado)">Aceptar</button>
+            <button type="button" class="btn btn-danger" (click)="rechazarResiduo(diagnosticoSeleccionado)">Rechazar</button>
+            <button type="button" class="btn btn-outline" (click)="cerrarDiagnostico()">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <section id="solicitudes-residuos" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Peticiones de usuarios</span>
+        <h2>Solicitudes de residuos</h2>
+        <p>Revisa las solicitudes enviadas por campesinos y precarga sus datos en el formulario de asignacion.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Campesino</th>
+              <th>Residuo</th>
+              <th>Ubicacion</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (solicitud of solicitudesResiduo; track solicitud.id_solicitud_residuo) {
+              <tr>
+                <td>{{ solicitud.campesino_nombre }}</td>
+                <td>{{ solicitud.tipo_residuo }} &middot; {{ solicitud.cantidad_kg }} kg</td>
+                <td>{{ solicitud.ubicacion }}</td>
+                <td>{{ solicitud.estado }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-small" (click)="seleccionarSolicitud(solicitud)">Asignar</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="empty">No hay solicitudes de residuos pendientes.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="asignaciones-historial" class="panel-section">
+      <div class="section-heading">
+        <span class="eyebrow">Historial</span>
+        <h2>Asignaciones</h2>
+        <p>Consulta, edita o elimina las asignaciones de residuos registradas por la alcaldia.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Residuo</th>
+              <th>Campesino</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (gestion of gestiones; track gestion.id_gestion) {
+              <tr>
+                <td>{{ gestion.tipo_residuo }} &middot; {{ gestion.cantidad_kg }} kg</td>
+                <td>{{ gestion.campesino_nombre }}</td>
+                <td>{{ gestion.fecha_asignacion | date:'medium' }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-small" (click)="editar(gestion)">Editar</button>
+                  <button type="button" class="btn btn-danger btn-small" (click)="eliminar(gestion.id_gestion)">Eliminar</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="empty">No hay asignaciones creadas.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 </div>

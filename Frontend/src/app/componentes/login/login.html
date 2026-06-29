@@ -1,48 +1,214 @@
-<div style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-  <h2 style="text-align: center; color: #2c3e50;">Iniciar Sesión</h2>
-  <p style="text-align: center; color: #7f8c8d; font-size: 14px;">Tierra y Vida Smart</p>
+<div class="auth-page">
+  <nav class="navbar-interna">
+    <div class="nav-content-interna">
+      <div class="logo"><span class="green-text">Tierra y Vida</span> Smart</div>
+      <div class="nav-links">
+        <button class="btn-nav" routerLink="/home">Volver al Inicio</button>
+      </div>
+    </div>
+  </nav>
+  <div
+    style="
+      width: 400px;
+      padding: 30px;
+      border-radius: 15px;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(46, 204, 113, 0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.7);
+      font-family: sans-serif;
+      color: white;
+    "
+  >
+    <h2
+      style="
+        text-align: center;
+        color: rgb(46, 204, 113);
+        margin-bottom: 10px;
+      "
+    >
+      Iniciar Sesión
+    </h2>
 
-  <form #loginForm="ngForm" (ngSubmit)="onLogin()">
-    <div style="margin-bottom: 15px;">
-      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Usuario:</label>
-      <input type="text" [(ngModel)]="credenciales.username" name="username" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+    <p
+      style="
+        text-align: center;
+        color: rgba(255,255,255,.75);
+        font-size: 14px;
+        margin-bottom: 25px;
+      "
+    >
+      Tierra y Vida Smart
+    </p>
+
+    <form #loginForm="ngForm" (ngSubmit)="onLogin()">
+
+      <div style="margin-bottom:15px;">
+        <label
+          style="
+            display:block;
+            margin-bottom:5px;
+            font-weight:bold;
+            color:white;
+          "
+        >
+          Usuario:
+        </label>
+
+        <input
+          type="text"
+          [(ngModel)]="credenciales.username"
+          name="username"
+          required
+          style="
+            width:100%;
+            padding:12px;
+            background: rgba(46,204,113,.2);
+            border:1px solid rgba(46,204,113,.6);
+            border-radius:6px;
+            box-sizing:border-box;
+            color:white;
+            outline:none;
+          "
+        >
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label
+          style="
+            display:block;
+            margin-bottom:5px;
+            font-weight:bold;
+            color:white;
+          "
+        >
+          Contraseña:
+        </label>
+
+        <input
+          type="password"
+          [(ngModel)]="credenciales.password"
+          name="password"
+          required
+          style="
+            width:100%;
+            padding:12px;
+            background: rgba(46,204,113,.2);
+            border:1px solid rgba(46,204,113,.6);
+            border-radius:6px;
+            box-sizing:border-box;
+            color:white;
+            outline:none;
+          "
+        >
+      </div>
+
+      <button
+        type="submit"
+        [disabled]="enviando"
+        style="
+          width:100%;
+          padding:12px;
+          background: rgb(46,204,113);
+          color:black;
+          border:none;
+          border-radius:6px;
+          font-size:16px;
+          font-weight:bold;
+          cursor:pointer;
+          transition:.3s;
+        "
+      >
+        {{ enviando ? 'Ingresando...' : 'Ingresar' }}
+      </button>
+
+    </form>
+
+    <div
+      *ngIf="mensajeError"
+      role="alert"
+      style="
+        margin-top:16px;
+        padding:12px;
+        border-radius:6px;
+        background: rgba(255,0,0,.15);
+        border:1px solid #ff4d4d;
+        color:white;
+      "
+    >
+      <strong>Atención</strong><br>
+      {{ mensajeError }}
     </div>
 
-    <div style="margin-bottom: 20px;">
-      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Contraseña:</label>
-      <input type="password" [(ngModel)]="credenciales.password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;">
+    <div
+      style="
+        text-align:center;
+        margin:25px 0;
+        position:relative;
+      "
+    >
+      <span
+        style="
+          background: rgba(0,0,0,.75);
+          padding:0 10px;
+          position:relative;
+          z-index:1;
+          color:rgba(255,255,255,.8);
+        "
+      >
+        O continúa con
+      </span>
+
+      <hr
+        style="
+          position:absolute;
+          width:100%;
+          top:50%;
+          left:0;
+          border:none;
+          border-top:1px solid rgba(46,204,113,.3);
+        "
+      >
     </div>
 
-    <button type="submit" [disabled]="enviando" style="width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
-      {{ enviando ? 'Ingresando...' : 'Ingresar' }}
-    </button>
-  </form>
+    <div style="display:flex; justify-content:center;">
+      <ng-container *ngIf="enviandoGoogle; else googleButton">
+        <span style="color:white;">
+          Validando cuenta de Google...
+        </span>
+      </ng-container>
 
-  <div *ngIf="mensajeError" role="alert" style="margin-top: 16px; padding: 12px; border: 1px solid #e74c3c; border-radius: 6px; background: #fdecea; color: #b91c1c; font-size: 14px; line-height: 1.4; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
-    <strong style="display: block; margin-bottom: 4px;">Atención</strong>
-    <span>{{ mensajeError }}</span>
+      <ng-template #googleButton>
+        <asl-google-signin-button
+          type="standard"
+          size="large"
+          text="continue_with"
+          theme="outline">
+        </asl-google-signin-button>
+      </ng-template>
+    </div>
+
+    <p
+      style="
+        text-align:center;
+        margin-top:25px;
+        color:white;
+      "
+    >
+      ¿No tienes cuenta?
+
+      <a
+        routerLink="/registro"
+        style="
+          color: rgb(46,204,113);
+          font-weight:bold;
+          text-decoration:none;
+        "
+      >
+        Regístrate aquí
+      </a>
+    </p>
+
   </div>
-
-  <div style="text-align: center; margin: 20px 0; color: #95a5a6; position: relative;">
-    <span style="background: white; padding: 0 10px; position: relative; z-index: 1;">O continúa con</span>
-    <hr style="position: absolute; top: 50%; left: 0; right: 0; border: 0; border-top: 1px solid #ecf0f1; margin: 0;">
-  </div>
-
-  <div style="display: flex; justify-content: center;">
-    <ng-container *ngIf="enviandoGoogle; else googleButton">
-      <span>Validando cuenta de Google...</span>
-    </ng-container>
-    <ng-template #googleButton>
-      <asl-google-signin-button
-        type="standard"
-        size="large"
-        text="continue_with"
-        theme="outline">
-      </asl-google-signin-button>
-    </ng-template>
-  </div>
-
-  <p style="text-align: center; margin-top: 20px; font-size: 14px;">
-    ¿No tienes cuenta? <a routerLink="/registro" style="color: #2ecc71; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
-  </p>
 </div>

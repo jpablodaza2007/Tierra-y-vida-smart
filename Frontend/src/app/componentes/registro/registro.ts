@@ -9,7 +9,8 @@ import { AuthService } from '../../services/auth';
   selector: 'app-registro',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  templateUrl: './registro.html'
+  templateUrl: './registro.html',
+  styleUrl: './registro.css'
 })
 export class RegistroComponent implements OnInit {
   enviando = false;

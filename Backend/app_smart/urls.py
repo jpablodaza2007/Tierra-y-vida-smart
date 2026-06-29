@@ -3,9 +3,13 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     ActivarCuentaView,
     AprobarCuentaView,
+    AprobarUsuarioView,
+    AuditoriaResiduoDecisionView,
+    AuditoriaResiduoListView,
     GestionDetailView,
     GestionListCreateView,
     GoogleLoginView,
+    InventarioAlcaldiaView,
     MisAsignacionesView,
     LoginView,
     OpcionesLogisticaView,
@@ -32,8 +36,11 @@ urlpatterns = [
     
     path('auth/login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', PerfilView.as_view(), name='perfil'),
+    path('usuarios/<int:id_usuario>/aprobar/', AprobarUsuarioView.as_view(), name='aprobar_usuario'),
 
     path('residuos/', ResiduoListCreateView.as_view(), name='residuos'),
+    path('residuos-auditoria/', AuditoriaResiduoListView.as_view(), name='residuos_auditoria'),
+    path('residuos-auditoria/<int:id_residuo>/decision/', AuditoriaResiduoDecisionView.as_view(), name='residuos_auditoria_decision'),
     path('residuos-disponibles/', ResiduoDisponibleView.as_view(), name='residuos_disponibles'),
     path('residuos/<int:id_residuo>/', ResiduoDetailView.as_view(), name='residuo_detalle'),
     path('solicitudes-sensor/', SolicitudSensorView.as_view(), name='solicitudes_sensor'),
@@ -44,4 +51,5 @@ urlpatterns = [
     path('gestiones/', GestionListCreateView.as_view(), name='gestiones'),
     path('gestiones/<int:id_gestion>/', GestionDetailView.as_view(), name='gestion_detalle'),
     path('opciones-logistica/', OpcionesLogisticaView.as_view(), name='opciones_logistica'),
+    path('inventario-alcaldia/', InventarioAlcaldiaView.as_view(), name='inventario_alcaldia'),
 ]
