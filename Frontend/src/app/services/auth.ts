@@ -47,6 +47,10 @@ export class AuthService {
     }
   }
 
+  guardarAccessToken(accessToken: string): void {
+    localStorage.setItem('access_token', accessToken);
+  }
+
   guardarSesion(respuesta: any): void {
     this.guardarTokens(respuesta.access, respuesta.refresh);
     const usuario: SesionUsuario = {
@@ -64,6 +68,10 @@ export class AuthService {
 
   obtenerToken(): string | null {
     return localStorage.getItem('access_token');
+  }
+
+  obtenerRefreshToken(): string | null {
+    return localStorage.getItem('refresh_token');
   }
 
   obtenerPerfil(): Observable<any> {
@@ -96,6 +104,7 @@ export class AuthService {
 
   rutaPorRol(rol?: string): string {
     const rolNormalizado = (rol || this.obtenerUsuario()?.rol || '').toLowerCase();
+    if (rolNormalizado === 'admin') return '/admin';
     if (rolNormalizado === 'campesino') return '/campesino';
     if (rolNormalizado === 'alcaldia' || rolNormalizado === 'alcaldía') return '/alcaldia';
     return '/contribuyente';

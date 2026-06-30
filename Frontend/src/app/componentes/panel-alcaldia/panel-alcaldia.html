@@ -117,6 +117,7 @@
             <tr>
               <th>Contribuyente</th>
               <th>Residuo</th>
+              <th>Precio propuesto</th>
               <th>Ubicacion</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -127,17 +128,24 @@
               <tr>
                 <td>{{ residuo.contribuyente_nombre || 'Contribuyente' }}</td>
                 <td>{{ residuo.tipo_residuo }} &middot; {{ residuo.cantidad_kg }} kg</td>
+                <td>${{ residuo.precio_sugerido_contribuyente }}</td>
                 <td>{{ residuo.ubicacion }}</td>
                 <td><span class="badge">{{ residuo.estado }}</span></td>
                 <td class="actions">
                   <button type="button" class="btn btn-small" (click)="verDiagnostico(residuo)">Ver Diagnostico</button>
-                  <button type="button" class="btn btn-primary btn-small" (click)="aceptarResiduo(residuo)">Aceptar</button>
-                  <button type="button" class="btn btn-danger btn-small" (click)="rechazarResiduo(residuo)">Rechazar</button>
+                  @if (residuo.estado === 'PENDIENTE' || residuo.estado === 'Pendiente') {
+                    <button type="button" class="btn btn-primary btn-small" (click)="aceptarResiduo(residuo)">Aceptar Precio</button>
+                    <input class="inline-number" type="number" min="0.01" step="0.01" [(ngModel)]="contraofertasResiduo[residuo.id_residuo]" [name]="'contraofertaResiduo' + residuo.id_residuo" placeholder="Nuevo valor">
+                    <button type="button" class="btn btn-info btn-small" (click)="hacerContraofertaResiduo(residuo)">Hacer Contraoferta</button>
+                    <button type="button" class="btn btn-danger btn-small" (click)="rechazarResiduo(residuo)">Rechazar</button>
+                  } @else {
+                    <span class="muted">Sin acciones pendientes</span>
+                  }
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="5" class="empty">No hay residuos pendientes de auditoria.</td>
+                <td colspan="6" class="empty">No hay residuos pendientes de auditoria.</td>
               </tr>
             }
           </tbody>
@@ -164,7 +172,7 @@
             <div><dt>Libre de origen animal</dt><dd>{{ diagnosticoSeleccionado.ausencia_origen_animal ? 'Si' : 'No' }}</dd></div>
             <div><dt>Plagas</dt><dd>{{ diagnosticoSeleccionado.presencia_plagas }}</dd></div>
             <div><dt>Bolsa compostable</dt><dd>{{ diagnosticoSeleccionado.bolsa_compostable ? 'Si' : 'No' }}</dd></div>
-            <div><dt>Tamano</dt><dd>{{ diagnosticoSeleccionado.tamano_picado }}</dd></div>
+            <div><dt>Tamaño</dt><dd>{{ diagnosticoSeleccionado.tamano_picado }}</dd></div>
           </dl>
 
           <div class="actions">
@@ -189,6 +197,7 @@
             <tr>
               <th>Campesino</th>
               <th>Residuo</th>
+              <th>Precio propuesto</th>
               <th>Ubicacion</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -199,15 +208,24 @@
               <tr>
                 <td>{{ solicitud.campesino_nombre }}</td>
                 <td>{{ solicitud.tipo_residuo }} &middot; {{ solicitud.cantidad_kg }} kg</td>
+                <td>${{ solicitud.precio_ofrecido_campesino }}</td>
                 <td>{{ solicitud.ubicacion }}</td>
                 <td>{{ solicitud.estado }}</td>
                 <td class="actions">
-                  <button type="button" class="btn btn-small" (click)="seleccionarSolicitud(solicitud)">Asignar</button>
+                  @if (solicitud.estado === 'PENDIENTE' || solicitud.estado === 'pendiente') {
+                    <button type="button" class="btn btn-primary btn-small" (click)="aceptarPrecioSolicitudResiduo(solicitud)">Aceptar Precio</button>
+                    <input class="inline-number" type="number" min="0.01" step="0.01" [(ngModel)]="contraofertasSolicitudResiduo[solicitud.id_solicitud_residuo]" [name]="'contraofertaSolicitud' + solicitud.id_solicitud_residuo" placeholder="Nuevo valor">
+                    <button type="button" class="btn btn-info btn-small" (click)="hacerContraofertaSolicitudResiduo(solicitud)">Hacer Contraoferta</button>
+                  } @else if (solicitud.estado === 'APROBADO' || solicitud.estado === 'ACEPTADO_POR_CAMPESINO') {
+                    <button type="button" class="btn btn-small" (click)="seleccionarSolicitud(solicitud)">Asignar</button>
+                  } @else {
+                    <span class="muted">Sin acciones pendientes</span>
+                  }
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="5" class="empty">No hay solicitudes de residuos pendientes.</td>
+                <td colspan="6" class="empty">No hay solicitudes de residuos pendientes.</td>
               </tr>
             }
           </tbody>

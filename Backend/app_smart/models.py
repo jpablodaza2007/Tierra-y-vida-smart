@@ -21,6 +21,31 @@ ESTADO_AUDITORIA_RESIDUO_CHOICES = [
     ('Pendiente', 'Pendiente'),
     ('Aceptado', 'Aceptado'),
     ('Rechazado', 'Rechazado'),
+    ('PENDIENTE', 'Pendiente'),
+    ('APROBADO', 'Aprobado'),
+    ('RECHAZADO', 'Rechazado'),
+    ('CONTRAOFERTA_ALCALDIA', 'Contraoferta de alcaldia'),
+    ('ACEPTADO_POR_CONTRIBUYENTE', 'Aceptado por contribuyente'),
+    ('ACEPTADO_POR_CAMPESINO', 'Aceptado por campesino'),
+]
+
+ESTADO_SOLICITUD_RESIDUO_CHOICES = [
+    ('PENDIENTE', 'Pendiente'),
+    ('APROBADO', 'Aprobado'),
+    ('RECHAZADO', 'Rechazado'),
+    ('CONTRAOFERTA_ALCALDIA', 'Contraoferta de alcaldia'),
+    ('ACEPTADO_POR_CAMPESINO', 'Aceptado por campesino'),
+]
+
+ESTADO_DICTAMEN_CHOICES = [
+    ('PENDIENTE', 'Pendiente'),
+    ('ACEPTADO', 'Aceptado'),
+    ('RECHAZADO', 'Rechazado'),
+    ('activo', 'Activo'),
+    ('pendiente_activacion', 'Pendiente de activacion'),
+    ('pendiente_aprobacion', 'Pendiente de aprobacion'),
+    ('aprobado', 'Aprobado'),
+    ('rechazado', 'Rechazado'),
 ]
 
 class Campesino(models.Model):
@@ -37,6 +62,15 @@ class Contribuyente(models.Model):
     class Meta:
         managed = True
         db_table = 'contribuyente'
+
+
+class Alcaldia(models.Model):
+    id_alcaldia = models.AutoField(primary_key=True)
+    id_usuario = models.OneToOneField('Usuario', models.DO_NOTHING, db_column='id_usuario', blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'alcaldia'
 
 class InventarioAlcaldia(models.Model):
     tipo_residuo = models.CharField(max_length=10, choices=INVENTARIO_TIPO_CHOICES, unique=True)
@@ -67,8 +101,11 @@ class SolicitudResiduo(models.Model):
     id_residuo = models.ForeignKey('ResiduoOrganico', models.DO_NOTHING, db_column='id_residuo', blank=True, null=True)
     tipo_residuo = models.CharField(max_length=20, choices=TIPO_RESIDUO_CHOICES, blank=True, null=True)
     cantidad_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    cantidad_solicitada = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    precio_ofrecido_campesino = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    contraoferta_alcaldia = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     ubicacion = models.CharField(max_length=255, blank=True, null=True)
-    estado = models.CharField(max_length=20, default='pendiente', blank=True)
+    estado = models.CharField(max_length=30, choices=ESTADO_SOLICITUD_RESIDUO_CHOICES, default='PENDIENTE', blank=True)
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -102,7 +139,10 @@ class ResiduoOrganico(models.Model):
     id_contribuyente = models.ForeignKey(Contribuyente, models.DO_NOTHING, db_column='id_contribuyente', blank=True, null=True)
     tipo_residuo = models.CharField(max_length=20, choices=TIPO_RESIDUO_CHOICES, blank=True, null=True)
     cantidad_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_AUDITORIA_RESIDUO_CHOICES, default='Pendiente', blank=True)
+    peso_estimado = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    precio_sugerido_contribuyente = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    contraoferta_alcaldia = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    estado = models.CharField(max_length=30, choices=ESTADO_AUDITORIA_RESIDUO_CHOICES, default='PENDIENTE', blank=True)
     dias_almacenamiento = models.PositiveIntegerField(blank=True, null=True)
     metodo_conservacion = models.CharField(max_length=80, blank=True, null=True)
     lista_materiales = models.TextField(blank=True, null=True)
@@ -130,12 +170,25 @@ class Sensor(models.Model):
         db_table = 'sensor'
 
 
+class SolicitudSensor(models.Model):
+    id_solicitud_sensor = models.AutoField(primary_key=True)
+    id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
+    tipo_sensor = models.CharField(max_length=50)
+    estado = models.CharField(max_length=20, choices=ESTADO_DICTAMEN_CHOICES, default='PENDIENTE')
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_entrega_deseada = models.DateField()
+    motivo_rechazo = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'solicitud_sensor'
+
+
 class Usuario(models.Model):
     id_usuario = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
     correo = models.CharField(unique=True, max_length=150)
     tipo_usuario = models.CharField(max_length=50, blank=True, null=True)
-    ubicacion = models.CharField(max_length=255, blank=True, null=True)
     comprobante_registro = models.FileField(
         upload_to='comprobantes/',
         blank=True,
@@ -143,6 +196,7 @@ class Usuario(models.Model):
     )
     estado_cuenta = models.CharField(
         max_length=30,
+        choices=ESTADO_DICTAMEN_CHOICES,
         default='activo',
         blank=True,
     )

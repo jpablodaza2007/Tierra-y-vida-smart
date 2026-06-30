@@ -7,7 +7,7 @@
     <div class="navbar-actions">
       <a class="nav-section-link" [routerLink]="[]" fragment="registrar-residuo">Registrar Residuo</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="mis-residuos">Mis Residuos</a>
-      <a class="nav-section-link" routerLink="/material-apoyo">Material de Apoyo</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="material-apoyo">Material de Apoyo</a>
       <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesion</button>
     </div>
   </nav>
@@ -35,6 +35,10 @@
 
         <label>Cantidad (kg)
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.cantidad_kg" name="cantidad" required>
+        </label>
+
+        <label>Precio Sugerido ($) que espera obtener
+          <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.precio_sugerido_contribuyente" name="precio_sugerido_contribuyente" required>
         </label>
 
         <label>Ubicacion (direccion / barrio)
@@ -73,7 +77,7 @@
           </select>
         </label>
 
-        <label>Tamano del material
+        <label>Tamaño del material
           <select [(ngModel)]="formulario.tamano_picado" name="tamano_picado" required>
             <option value="">Selecciona formato</option>
             <option value="Entero">Entero</option>
@@ -124,6 +128,7 @@
             <tr>
               <th>Tipo</th>
               <th>Cantidad</th>
+              <th>Precio sugerido</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -133,6 +138,7 @@
               <tr>
                 <td>{{ residuo.tipo_residuo }}</td>
                 <td>{{ residuo.cantidad_kg }} kg</td>
+                <td>${{ residuo.precio_sugerido_contribuyente }}</td>
                 <td>
                   <span class="badge">{{ residuo.estado }}</span>
                   @if (residuo.estado === 'Rechazado') {
@@ -144,17 +150,105 @@
                   }
                 </td>
                 <td class="actions">
-                  <button type="button" class="btn btn-small" (click)="editar(residuo)">Editar</button>
-                  <button type="button" class="btn btn-danger btn-small" (click)="eliminar(residuo.id_residuo)">Eliminar</button>
+                  <ng-container *ngIf="residuo.estado === 'Pendiente' || residuo.estado === 'PENDIENTE'">
+                    <button type="button" class="btn btn-small" (click)="editar(residuo)">Editar</button>
+                    <button type="button" class="btn btn-danger btn-small" (click)="eliminar(residuo.id_residuo)">Eliminar</button>
+                  </ng-container>
+
+                  <span *ngIf="residuo.estado === 'Aceptado' || residuo.estado === 'APROBADO' || residuo.estado === 'ACEPTADO_POR_CONTRIBUYENTE'" class="badge">
+                    Aceptado
+                  </span>
+
+                  <span *ngIf="residuo.estado === 'Rechazado' || residuo.estado === 'RECHAZADO'" class="error">
+                    Rechazado: {{ residuo.motivo_rechazo || 'Sin motivo registrado' }}
+                  </span>
+
+                  <div *ngIf="residuo.estado === 'CONTRAOFERTA_ALCALDIA'" class="counteroffer-banner">
+                    <strong>La alcaldia propone un precio de ajuste de: ${{ residuo.contraoferta_alcaldia }}</strong>
+                    <div class="actions">
+                      <button type="button" class="btn btn-primary btn-small" (click)="responderContraoferta(residuo, 'aceptar')">Aceptar</button>
+                      <button type="button" class="btn btn-danger btn-small" (click)="responderContraoferta(residuo, 'rechazar')">Rechazar</button>
+                    </div>
+                  </div>
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="4" class="empty">Aun no has registrado residuos.</td>
+                <td colspan="5" class="empty">Aun no has registrado residuos.</td>
               </tr>
             }
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="material-apoyo" class="panel-section learning-section">
+      <div class="section-heading">
+        <span class="eyebrow">Material de apoyo</span>
+        <h2>Clasificacion de residuos</h2>
+        <p>Identifica correctamente los materiales antes de registrarlos para que la Alcaldia pueda auditarlos y transformarlos con mayor precision.</p>
+      </div>
+
+      <div class="contenedor-tipos">
+        <article class="tipo-card">
+          <div class="tipo-icono">01</div>
+          <h3>Restos de frutas y verduras</h3>
+          <p>Material organico fresco ideal para procesos de compostaje controlado.</p>
+          <ul>
+            <li>Cascaras, tallos y hojas limpias.</li>
+            <li>Sin aceite, sal ni salsas.</li>
+          </ul>
+        </article>
+
+        <article class="tipo-card">
+          <div class="tipo-icono">02</div>
+          <h3>Hojas secas y poda</h3>
+          <p>Aportan carbono y ayudan a equilibrar la humedad del material organico.</p>
+          <ul>
+            <li>Hojas, pasto seco y ramas pequenas.</li>
+            <li>Evita material con plagas visibles.</li>
+          </ul>
+        </article>
+
+        <article class="tipo-card">
+          <div class="tipo-icono">03</div>
+          <h3>Carton y papel sin brillo</h3>
+          <p>Funcionan como residuo seco cuando estan limpios y libres de plastificados.</p>
+          <ul>
+            <li>Cajas picadas, servilletas limpias y papel kraft.</li>
+            <li>Retira cintas, grapas y adhesivos.</li>
+          </ul>
+        </article>
+
+        <article class="tipo-card">
+          <div class="tipo-icono">04</div>
+          <h3>Borra de cafe e infusiones</h3>
+          <p>Son residuos humedos utiles para activar la mezcla organica.</p>
+          <ul>
+            <li>Cafe molido y bolsas de te compostables.</li>
+            <li>Evita capsulas, plasticos o aluminio.</li>
+          </ul>
+        </article>
+
+        <article class="tipo-card">
+          <div class="tipo-icono">05</div>
+          <h3>Residuos no aptos</h3>
+          <p>Estos materiales contaminan la cadena y deben separarse antes del registro.</p>
+          <ul>
+            <li>Carnes, lacteos, grasas y comida cocinada.</li>
+            <li>Vidrio, metales, colillas y sanitarios.</li>
+          </ul>
+        </article>
+
+        <article class="tipo-card">
+          <div class="tipo-icono">06</div>
+          <h3>Empaque compostable</h3>
+          <p>Solo debe registrarse cuando tenga certificacion o identificacion clara.</p>
+          <ul>
+            <li>Bolsas compostables certificadas.</li>
+            <li>No mezclar con bolsas plasticas comunes.</li>
+          </ul>
+        </article>
       </div>
     </section>
   </main>

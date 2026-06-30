@@ -8,7 +8,7 @@
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-residuos">Solicitar Residuos</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-sensores">Solicitar Sensores</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="mis-sensores">Mis Sensores</a>
-      <a class="nav-section-link" routerLink="/material-apoyo">Material de Apoyo</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="material-aprendizaje">Material de Aprendizaje</a>
       <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesión</button>
     </div>
   </nav>
@@ -38,6 +38,10 @@
           <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.cantidad_kg" name="cantidadKg" required>
         </label>
 
+        <label>Precio que ofrece pagar ($)
+          <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.precio_ofrecido_campesino" name="precioOfrecidoCampesino" required>
+        </label>
+
         <label>Ubicación (dirección / barrio)
           <input [(ngModel)]="solicitudResiduo.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
         </label>
@@ -49,6 +53,50 @@
 
       @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
       @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
+
+      <div class="subsection">
+        <h3>Mis solicitudes de residuos</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Residuo</th>
+                <th>Cantidad</th>
+                <th>Precio ofrecido</th>
+                <th>Estado</th>
+                <th>Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (solicitud of solicitudesResiduo; track solicitud.id_solicitud_residuo) {
+                <tr>
+                  <td>{{ solicitud.tipo_residuo }}</td>
+                  <td>{{ solicitud.cantidad_solicitada || solicitud.cantidad_kg }} kg</td>
+                  <td>${{ solicitud.precio_ofrecido_campesino }}</td>
+                  <td><span class="badge">{{ solicitud.estado }}</span></td>
+                  <td>
+                    @if (solicitud.estado === 'CONTRAOFERTA_ALCALDIA') {
+                      <div class="counteroffer-banner">
+                        <strong>La alcaldia propone un precio de ajuste de: ${{ solicitud.contraoferta_alcaldia }}</strong>
+                        <div class="actions">
+                          <button type="button" class="btn btn-primary btn-small" (click)="responderContraofertaSolicitud(solicitud, 'aceptar')">Aceptar Precio</button>
+                          <button type="button" class="btn btn-danger btn-small" (click)="responderContraofertaSolicitud(solicitud, 'rechazar')">Rechazar Solicitud</button>
+                        </div>
+                      </div>
+                    } @else {
+                      <span class="muted">Sin acciones</span>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="empty">Aun no tienes solicitudes de residuos.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div class="subsection">
         <h3>Mis solicitudes aceptadas / asignaciones de la Alcaldía</h3>
@@ -89,24 +137,81 @@
       </div>
 
       <form class="form-grid" #solicitudForm="ngForm" (ngSubmit)="solicitarSensor()">
-        <label>Tipo de sensor
-          <select [(ngModel)]="solicitud.tipo_sensor" name="solicitudTipoSensor" required>
-            <option value="">Selecciona un tipo</option>
-            <option>Temperatura</option>
-            <option>Humedad</option>
-            <option>pH</option>
-            <option>Metano</option>
-            <option>Otro</option>
-          </select>
+        <fieldset class="sensor-checkbox-group form-grid-full">
+          <legend>Tipo de sensor</legend>
+          <div class="sensor-checkbox-list">
+            @for (tipoSensorDisponible of tiposSensoresDisponibles; track tipoSensorDisponible) {
+              <label class="sensor-checkbox-option">
+                <input
+                  type="checkbox"
+                  [name]="'solicitudSensor' + tipoSensorDisponible"
+                  [ngModel]="solicitud.tipo_sensores.includes(tipoSensorDisponible)"
+                  (ngModelChange)="alternarSensorSolicitud(tipoSensorDisponible, $event)"
+                  [disabled]="solicitudSensorEnviada"
+                >
+                <span>{{ tipoSensorDisponible }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <label>Fecha deseada de recepción
+          <input
+            type="date"
+            [(ngModel)]="solicitud.fecha_entrega_deseada"
+            name="fechaEntregaDeseada"
+            [min]="fechaMinimaEntrega"
+            [disabled]="solicitudSensorEnviada"
+            required
+          >
         </label>
 
         <div class="actions">
-          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || solicitudSensorEnviada">Enviar solicitud</button>
+          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || !haySensoresSeleccionados() || solicitudSensorEnviada">Enviar solicitud</button>
         </div>
       </form>
 
+      @if (mensajeConfirmacionSensor) {
+        <div class="sensor-toast" role="status">{{ mensajeConfirmacionSensor }}</div>
+      }
       @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
       @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
+
+      <div class="subsection">
+        <h3>Historial de solicitudes de sensores</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sensor</th>
+                <th>Fecha deseada de recepción</th>
+                <th>Estado</th>
+                <th>Anotacion</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (solicitudSensor of solicitudesSensor; track solicitudSensor.id_solicitud_sensor) {
+                <tr>
+                  <td>{{ solicitudSensor.tipo_sensor }}</td>
+                  <td>{{ solicitudSensor.fecha_entrega_deseada }}</td>
+                  <td>{{ solicitudSensor.estado }}</td>
+                  <td>
+                    @if (solicitudSensor.estado === 'RECHAZADO' && solicitudSensor.motivo_rechazo) {
+                      <p class="rejection-message">Motivo del rechazo: {{ solicitudSensor.motivo_rechazo }}</p>
+                    } @else {
+                      <span class="muted">Sin observaciones</span>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="empty">Aún no tienes solicitudes de sensores.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section id="mis-sensores" class="panel-section">
@@ -124,8 +229,6 @@
               <option>Temperatura</option>
               <option>Humedad</option>
               <option>pH</option>
-              <option>Metano</option>
-              <option>Otro</option>
             </select>
           </label>
 
@@ -154,6 +257,141 @@
           <p class="empty empty-card">Aún no tienes sensores registrados. Cuando el administrador apruebe tu solicitud, podrás administrarlos aquí.</p>
         }
       </div>
+    </section>
+    <section id="material-aprendizaje" class="panel-section learning-section">
+      <div class="section-heading">
+        <span class="eyebrow">Guia practica</span>
+        <h2>Modulo de capacitacion: Guia de Compostaje</h2>
+        <p>Aprende a transformar tus residuos organicos en abono estable y rico en nutrientes para tus cultivos.</p>
+      </div>
+
+      <article class="learning-card">
+        <div class="learning-card-header">
+          <h3>Fundamentos del Compostaje</h3>
+        </div>
+        <div class="learning-about-grid">
+          <div class="learning-copy">
+            <h4>En que consiste</h4>
+            <p>Es un proceso biologico controlado de descomposicion donde microorganismos transforman la materia organica fresca en compost productivo.</p>
+
+            <h4>Importancia en el campo</h4>
+            <p>Reduce la compra de fertilizantes quimicos, recupera la estructura natural de la tierra y mejora la retencion de agua en epocas secas.</p>
+          </div>
+          <img src="https://encolombia.com/wp-content/uploads/2020/06/1.-Compost.jpg" alt="Pila de compostaje">
+        </div>
+      </article>
+
+      <article class="learning-card">
+        <div class="learning-card-header">
+          <h3>Clasificacion correcta de los residuos</h3>
+        </div>
+        <p class="learning-intro">El exito de la compostera depende del equilibrio entre elementos secos, ricos en carbono, y humedos, ricos en nitrogeno.</p>
+
+        <div class="residue-grid">
+          <div class="residue-column">
+            <h4>Residuos secos</h4>
+            <div class="learning-item">
+              <img src="https://thefoodtech.com/wp-content/uploads/2022/08/embalajes-carton-scaled.jpg" alt="Carton">
+              <div>
+                <strong>Carton y papel picado</strong>
+                <p>Usalos sin tintas brillantes ni cintas plasticas.</p>
+              </div>
+            </div>
+            <div class="learning-item">
+              <img src="https://cdn.pixabay.com/photo/2018/10/22/19/21/foliage-3766103_640.jpg" alt="Hojas secas">
+              <div>
+                <strong>Hojas secas y rastrojo</strong>
+                <p>Ayudan a que la mezcla respire y no se compacte.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="residue-column">
+            <h4>Residuos humedos</h4>
+            <div class="learning-item">
+              <img src="https://a.storyblok.com/f/160385/b596fa5d64/residuos_frutas.jpg/m/?w=256&q=100" alt="Cascaras de frutas">
+              <div>
+                <strong>Cascaras de frutas y verduras</strong>
+                <p>Aportan humedad y nutrientes base al proceso.</p>
+              </div>
+            </div>
+            <div class="learning-item">
+              <img src="https://www.cleanipedia.com/images/j460tsxlxjkc/14bc30ccf7bbd07781bccbcc285e3afb/393531577630959fe7b09a20e6a8c7ac/aHR0cHNfX193d3cuY2xlYW5pcGVkaWEuY29tX2NvbnRlbnRfZGFtX3VuaWxldmVyX2NsZWFuaXBlZGlhX2luZG9uZXNpYV9nZW5lcmFsX2ltYWdlXzgtMTc5NDkzMC1qcGcuanBn/1200w/caf%C3%A9-molido-y-granos-de-caf%C3%A9-en-segundo-plano..jpg" alt="Cafe molido">
+              <div>
+                <strong>Borra de cafe y te</strong>
+                <p>Funciona como activador biologico para la pila.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="learning-card">
+        <div class="learning-card-header">
+          <h3>Guia paso a paso</h3>
+        </div>
+        <div class="learning-steps">
+          <div class="step-card">
+            <span>1</span>
+            <img src="https://a.storyblok.com/f/160385/901aca41ec/fases-compostaje.jpg/m/?w=256&q=100" alt="Lugar adecuado">
+            <h4>Lugar adecuado</h4>
+            <p>Ubica una zona en semisombra, protegida de vientos fuertes y directamente sobre la tierra.</p>
+          </div>
+          <div class="step-card">
+            <span>2</span>
+            <img src="https://fmalba.com.ar/wp-content/uploads/muni21_residuos_secos_humedos.jpg" alt="Materiales separados">
+            <h4>Reune los materiales</h4>
+            <p>Separa previamente los insumos secos de los humedos para facilitar el armado.</p>
+          </div>
+          <div class="step-card">
+            <span>3</span>
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3tSo90SOf3uZE7akfZCGrQ37EQLs1x59iqQ&s" alt="Base de compostaje">
+            <h4>Prepara la base</h4>
+            <p>Coloca una primera capa de ramas gruesas para garantizar ventilacion inferior.</p>
+          </div>
+          <div class="step-card">
+            <span>4</span>
+            <img src="https://diario.madrid.es/huertosescolares/wp-content/uploads/sites/46/2021/10/Esquema-compost.jpg" alt="Capas de compostaje">
+            <h4>Alterna las capas</h4>
+            <p>Intercala una capa verde humeda por una capa marron seca.</p>
+          </div>
+          <div class="step-card">
+            <span>5</span>
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQH4bHT6ksaSHAro1K8InP96Pk7sacMHmIK9g&s" alt="Control de humedad">
+            <h4>Control de humedad</h4>
+            <p>Manten la pila humeda como una esponja escurrida. Riega suavemente si es necesario.</p>
+          </div>
+          <div class="step-card">
+            <span>6</span>
+            <img src="https://tse2.mm.bing.net/th/id/OIP.kcxoPhiuESwEoXgmi-jzMQHaEK?cb=thfvnextfalcon3&rs=1&pid=ImgDetMain&o=7&rm=3" alt="Airear compostaje">
+            <h4>Airea la mezcla</h4>
+            <p>Voltea la pila con una horca o pala cada una o dos semanas para oxigenar el proceso.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="learning-card">
+        <div class="learning-card-header">
+          <h3>Beneficios de implementarlo</h3>
+        </div>
+        <div class="learning-benefits-grid">
+          <div class="learning-benefit-box">
+            <span class="material-icons learning-benefit-icon" aria-hidden="true">health_and_safety</span>
+            <strong>Sostenibilidad sanitaria</strong>
+            <p>Evita focos de contaminacion e infecciones en los perimetros de siembra.</p>
+          </div>
+          <div class="learning-benefit-box">
+            <span class="material-icons learning-benefit-icon" aria-hidden="true">account_balance_wallet</span>
+            <strong>Ahorro de costos</strong>
+            <p>Sustituye enmiendas comerciales costosas por insumos propios autogestionados.</p>
+          </div>
+          <div class="learning-benefit-box">
+            <span class="material-icons learning-benefit-icon" aria-hidden="true">trending_up</span>
+            <strong>Rendimiento del cultivo</strong>
+            <p>Mejora progresivamente la biomasa vegetal gracias a la materia organica estable.</p>
+          </div>
+        </div>
+      </article>
     </section>
   </main>
 </div>

@@ -50,6 +50,13 @@ export const routes: Routes = [
         title: 'Panel de Alcaldía'
     },
     {
+        path: 'admin',
+        loadComponent: () => import('./componentes/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
+        canActivate: [authGuard],
+        data: { roles: ['admin'] },
+        title: 'Panel de Administracion'
+    },
+    {
         path: '**',
         redirectTo: ''
     }

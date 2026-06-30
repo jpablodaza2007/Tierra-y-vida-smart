@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -19,6 +19,8 @@ export class PanelAlcaldiaComponent implements OnInit {
   campesinos: any[] = [];
   solicitudesResiduo: any[] = [];
   residuosAuditoria: any[] = [];
+  contraofertasResiduo: Record<number, number | null> = {};
+  contraofertasSolicitudResiduo: Record<number, number | null> = {};
   diagnosticoSeleccionado: any = null;
   editandoId: number | null = null;
   mensajeError = '';
@@ -29,7 +31,8 @@ export class PanelAlcaldiaComponent implements OnInit {
 
   constructor(
     public auth: AuthService,
-    private crud: CrudService
+    private crud: CrudService,
+    private cdr: ChangeDetectorRef
   ) {
     this.usuario = this.auth.obtenerUsuario();
   }
@@ -57,6 +60,7 @@ export class PanelAlcaldiaComponent implements OnInit {
           const rol = (usuario?.tipo_rol ?? usuario?.rol ?? usuario?.role ?? '').toString().toLowerCase();
           return !rol || rol === 'campesino';
         });
+        this.cdr.detectChanges();
       },
       error: () => this.mensajeError = 'No se pudieron cargar los campesinos disponibles.'
     });
@@ -126,25 +130,37 @@ export class PanelAlcaldiaComponent implements OnInit {
 
   cargarGestionesInventario(): void {
     this.crud.listarGestiones().subscribe({
-      next: (datos) => this.gestiones = datos,
+      next: (datos) => {
+        this.gestiones = datos;
+        this.cdr.detectChanges();
+      },
       error: () => this.mensajeError = 'No se pudieron cargar las asignaciones.'
     });
     this.crud.listarInventario().subscribe({
-      next: (datos) => this.inventario = datos,
+      next: (datos) => {
+        this.inventario = datos;
+        this.cdr.detectChanges();
+      },
       error: () => this.mensajeError = 'No se pudo cargar el inventario.'
     });
   }
 
   obtenerSolicitudesPendientes(): void {
     this.crud.listarSolicitudesResiduo().subscribe({
-      next: (datos) => this.solicitudesResiduo = datos,
+      next: (datos) => {
+        this.solicitudesResiduo = datos;
+        this.cdr.detectChanges();
+      },
       error: () => this.mensajeError = 'No se pudieron cargar las solicitudes de residuos.'
     });
   }
 
   obtenerResiduosAuditoria(): void {
     this.crud.listarResiduosAuditoria().subscribe({
-      next: (datos) => this.residuosAuditoria = datos,
+      next: (datos) => {
+        this.residuosAuditoria = datos;
+        this.cdr.detectChanges();
+      },
       error: () => this.mensajeError = 'No se pudieron cargar los residuos pendientes de auditoria.'
     });
   }
@@ -158,16 +174,81 @@ export class PanelAlcaldiaComponent implements OnInit {
   }
 
   aceptarResiduo(residuo: any): void {
-    this.crud.decidirResiduoAuditoria(residuo.id_residuo, { estado: 'Aceptado' }).subscribe({
+    this.crud.decidirResiduoAuditoria(residuo.id_residuo, { estado: 'APROBADO' }).subscribe({
       next: () => {
         this.mensajeError = '';
         this.mensajeExito = 'Residuo aceptado y sumado al inventario central.';
         this.cerrarDiagnostico();
         this.cargarGestionesInventario();
+        this.obtenerSolicitudesPendientes();
         this.obtenerResiduosAuditoria();
       },
       error: (err) => {
         this.mensajeError = this.obtenerMensajeError(err) || 'No se pudo aceptar el residuo.';
+        this.mensajeExito = '';
+      }
+    });
+  }
+
+  hacerContraofertaResiduo(residuo: any): void {
+    const valor = this.contraofertasResiduo[residuo.id_residuo];
+    if (valor == null || Number(valor) <= 0) {
+      this.mensajeError = 'Ingresa una contraoferta valida para el residuo.';
+      this.mensajeExito = '';
+      return;
+    }
+
+    this.crud.decidirResiduoAuditoria(residuo.id_residuo, {
+      estado: 'CONTRAOFERTA_ALCALDIA',
+      contraoferta_alcaldia: Number(valor),
+    }).subscribe({
+      next: () => {
+        this.mensajeError = '';
+        this.mensajeExito = 'Contraoferta enviada al contribuyente.';
+        delete this.contraofertasResiduo[residuo.id_residuo];
+        this.obtenerResiduosAuditoria();
+      },
+      error: (err) => {
+        this.mensajeError = this.obtenerMensajeError(err) || 'No se pudo enviar la contraoferta.';
+        this.mensajeExito = '';
+      }
+    });
+  }
+
+  aceptarPrecioSolicitudResiduo(solicitud: any): void {
+    this.crud.decidirSolicitudResiduoAuditoria(solicitud.id_solicitud_residuo, { estado: 'APROBADO' }).subscribe({
+      next: () => {
+        this.mensajeError = '';
+        this.mensajeExito = 'Precio de solicitud aceptado.';
+        this.obtenerSolicitudesPendientes();
+      },
+      error: (err) => {
+        this.mensajeError = this.obtenerMensajeError(err) || 'No se pudo aceptar el precio de la solicitud.';
+        this.mensajeExito = '';
+      }
+    });
+  }
+
+  hacerContraofertaSolicitudResiduo(solicitud: any): void {
+    const valor = this.contraofertasSolicitudResiduo[solicitud.id_solicitud_residuo];
+    if (valor == null || Number(valor) <= 0) {
+      this.mensajeError = 'Ingresa una contraoferta valida para la solicitud.';
+      this.mensajeExito = '';
+      return;
+    }
+
+    this.crud.decidirSolicitudResiduoAuditoria(solicitud.id_solicitud_residuo, {
+      estado: 'CONTRAOFERTA_ALCALDIA',
+      contraoferta_alcaldia: Number(valor),
+    }).subscribe({
+      next: () => {
+        this.mensajeError = '';
+        this.mensajeExito = 'Contraoferta enviada al campesino.';
+        delete this.contraofertasSolicitudResiduo[solicitud.id_solicitud_residuo];
+        this.obtenerSolicitudesPendientes();
+      },
+      error: (err) => {
+        this.mensajeError = this.obtenerMensajeError(err) || 'No se pudo enviar la contraoferta.';
         this.mensajeExito = '';
       }
     });
@@ -188,6 +269,8 @@ export class PanelAlcaldiaComponent implements OnInit {
         this.mensajeError = '';
         this.mensajeExito = 'Residuo rechazado. El contribuyente podra ver el motivo.';
         this.cerrarDiagnostico();
+        this.cargarGestionesInventario();
+        this.obtenerSolicitudesPendientes();
         this.obtenerResiduosAuditoria();
       },
       error: (err) => {
@@ -290,7 +373,7 @@ export class PanelAlcaldiaComponent implements OnInit {
   seleccionarSolicitud(solicitud: any): void {
     this.solicitudSeleccionadaId = solicitud.id_solicitud_residuo ?? solicitud.id ?? null;
     this.formAsignacion.tipo_residuo = solicitud.tipo_residuo;
-    this.formAsignacion.cantidad_kg = parseFloat(solicitud.cantidad_kg);
+    this.formAsignacion.cantidad_kg = parseFloat(solicitud.cantidad_solicitada ?? solicitud.cantidad_kg);
     this.formAsignacion.id_campesino = solicitud.id_campesino;
     this.formAsignacion.ubicacion = solicitud.ubicacion_entrega || solicitud.ubicacion || solicitud.campesino?.ubicacion || '';
     if (!this.formAsignacion.ubicacion) {

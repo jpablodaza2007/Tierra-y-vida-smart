@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -8,7 +9,7 @@ import { CrudService } from '../../services/crud';
 @Component({
   selector: 'app-panel-contribuyente',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, NgIf, RouterLink],
   templateUrl: './panel-contribuyente.html',
   styleUrl: '../panels.css'
 })
@@ -24,7 +25,8 @@ export class PanelContribuyenteComponent implements OnInit {
   constructor(
     public auth: AuthService,
     private crud: CrudService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef
   ) {
     this.usuario = this.auth.obtenerUsuario();
     this.pdfUrlSegura = this.sanitizer.bypassSecurityTrustResourceUrl('http://127.0.0.1:8000/media/materiales/Guia_Residuos-Solidos_Digital.pdf');
@@ -38,6 +40,7 @@ export class PanelContribuyenteComponent implements OnInit {
     return {
       tipo_residuo: '',
       cantidad_kg: null as number | null,
+      precio_sugerido_contribuyente: null as number | null,
       ubicacion: '',
       dias_almacenamiento: null as number | null,
       metodo_conservacion: '',
@@ -54,7 +57,10 @@ export class PanelContribuyenteComponent implements OnInit {
 
   cargar(): void {
     this.crud.listarResiduos().subscribe({
-      next: (datos) => this.residuos = datos,
+      next: (datos) => {
+        this.residuos = datos;
+        this.cdr.detectChanges();
+      },
       error: (err) => this.mensajeError = this.obtenerMensajeError(err) || 'No se pudieron cargar los residuos.'
     });
   }
@@ -65,6 +71,9 @@ export class PanelContribuyenteComponent implements OnInit {
     }
     if (this.formulario.cantidad_kg == null || Number(this.formulario.cantidad_kg) <= 0) {
       return 'Debes ingresar una cantidad mayor a cero.';
+    }
+    if (this.formulario.precio_sugerido_contribuyente == null || Number(this.formulario.precio_sugerido_contribuyente) <= 0) {
+      return 'Debes ingresar el precio sugerido que esperas obtener.';
     }
     if (!this.formulario.ubicacion?.trim()) {
       return 'Debes ingresar tu ubicacion.';
@@ -129,6 +138,7 @@ export class PanelContribuyenteComponent implements OnInit {
     this.formulario = {
       tipo_residuo: residuo.tipo_residuo,
       cantidad_kg: Number(residuo.cantidad_kg),
+      precio_sugerido_contribuyente: residuo.precio_sugerido_contribuyente == null ? null : Number(residuo.precio_sugerido_contribuyente),
       ubicacion: residuo.ubicacion || '',
       dias_almacenamiento: residuo.dias_almacenamiento ?? null,
       metodo_conservacion: residuo.metodo_conservacion || '',
@@ -148,6 +158,18 @@ export class PanelContribuyenteComponent implements OnInit {
     this.crud.eliminarResiduo(id).subscribe({
       next: () => this.cargar(),
       error: () => this.mensajeError = 'No se pudo eliminar el residuo.'
+    });
+  }
+
+  responderContraoferta(residuo: any, decision: 'aceptar' | 'rechazar'): void {
+    this.crud.responderContraofertaResiduo(residuo.id_residuo, decision).subscribe({
+      next: () => {
+        this.mensajeError = '';
+        this.cargar();
+      },
+      error: (err) => {
+        this.mensajeError = this.obtenerMensajeError(err) || 'No se pudo responder la contraoferta.';
+      }
     });
   }
 

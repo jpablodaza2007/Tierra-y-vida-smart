@@ -1,0 +1,164 @@
+<main class="admin-page">
+  <nav class="admin-navbar">
+    <div class="navbar-brand">Tierra y Vida <span>Smart</span></div>
+    <div class="navbar-actions">
+      <button type="button" class="btn-nav" (click)="auth.cerrarSesion()">Cerrar Sesion</button>
+    </div>
+  </nav>
+
+  <section class="admin-shell">
+    <header class="admin-header">
+      <h1>Revision de registros y hardware</h1>
+    </header>
+
+    <div *ngIf="mensajeError" class="alert alert-error">{{ mensajeError }}</div>
+    <div *ngIf="mensajeExito" class="alert alert-success">{{ mensajeExito }}</div>
+
+    <section class="admin-section">
+      <div class="section-heading">
+        <h2>Solicitudes de Registro de Contribuyentes</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>&Uacute;ltima Ubicaci&oacute;n de Entrega</th>
+              <th>Comprobante</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of contribuyentes">
+              <td>{{ item.nombre }}</td>
+              <td>{{ item.correo }}</td>
+              <td class="location-td">
+                <span *ngIf="tieneUltimaUbicacion(item.ultima_ubicacion); else sinEntregasContribuyente" class="location-value">
+                  {{ item.ultima_ubicacion }}
+                </span>
+                <ng-template #sinEntregasContribuyente>
+                  <span class="badge badge-muted">Sin entregas</span>
+                </ng-template>
+              </td>
+              <td>
+                <a *ngIf="item.comprobante_url" class="file-link" [href]="item.comprobante_url" target="_blank" rel="noopener">
+                  Ver Comprobante
+                </a>
+              </td>
+              <td><span [class]="badgeClass(item.estado)">{{ item.estado }}</span></td>
+              <td>
+                <div class="row-actions" *ngIf="estaPendiente(item.estado)">
+                  <button type="button" class="btn btn-accept" (click)="dictaminarContribuyente(item.id, 'ACEPTADO')">Aceptar</button>
+                  <button type="button" class="btn btn-reject" (click)="dictaminarContribuyente(item.id, 'RECHAZADO')">Rechazar</button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!contribuyentes.length">
+              <td colspan="6" class="empty">No hay solicitudes de contribuyentes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-heading">
+        <h2>Solicitudes de Registro de Alcaldias</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>&Uacute;ltima Ubicaci&oacute;n de Entrega</th>
+              <th>Comprobante</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of alcaldias">
+              <td>{{ item.nombre }}</td>
+              <td>{{ item.correo }}</td>
+              <td class="location-td">
+                <span *ngIf="tieneUltimaUbicacion(item.ultima_ubicacion); else sinEntregasAlcaldia" class="location-value">
+                  {{ item.ultima_ubicacion }}
+                </span>
+                <ng-template #sinEntregasAlcaldia>
+                  <span class="badge badge-muted">Por asignar</span>
+                </ng-template>
+              </td>
+              <td>
+                <a *ngIf="item.comprobante_url" class="file-link" [href]="item.comprobante_url" target="_blank" rel="noopener">
+                  Ver Comprobante
+                </a>
+              </td>
+              <td><span [class]="badgeClass(item.estado)">{{ item.estado }}</span></td>
+              <td>
+                <div class="row-actions" *ngIf="estaPendiente(item.estado)">
+                  <button type="button" class="btn btn-accept" (click)="dictaminarAlcaldia(item.id, 'ACEPTADO')">Aceptar</button>
+                  <button type="button" class="btn btn-reject" (click)="dictaminarAlcaldia(item.id, 'RECHAZADO')">Rechazar</button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!alcaldias.length">
+              <td colspan="6" class="empty">No hay solicitudes de alcaldias.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-heading">
+        <h2>Solicitudes de Sensores</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Campesino</th>
+              <th>Correo</th>
+              <th>&Uacute;ltima Ubicaci&oacute;n de Entrega</th>
+              <th>Tipo de Sensor</th>
+              <th>Fecha de Entrega Programada</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of solicitudesSensores">
+              <td>{{ item.campesino_nombre }}</td>
+              <td>{{ item.campesino_correo }}</td>
+              <td class="location-td">
+                <span *ngIf="tieneUltimaUbicacion(item.ultima_ubicacion); else sinEntregasSensor" class="location-value">
+                  {{ item.ultima_ubicacion }}
+                </span>
+                <ng-template #sinEntregasSensor>
+                  <span class="badge badge-muted">Sin entregas</span>
+                </ng-template>
+              </td>
+              <td>{{ item.tipo_sensor }}</td>
+              <td>{{ item.fecha_entrega_deseada | date:'mediumDate' }}</td>
+              <td>{{ item.fecha_solicitud | date:'short' }}</td>
+              <td><span [class]="badgeClass(item.estado)">{{ item.estado }}</span></td>
+              <td>
+                <div class="row-actions" *ngIf="estaPendiente(item.estado)">
+                  <button type="button" class="btn btn-accept" (click)="dictaminarSensor(item.id_solicitud_sensor, 'ACEPTADO')">Aceptar</button>
+                  <button type="button" class="btn btn-reject" (click)="dictaminarSensor(item.id_solicitud_sensor, 'RECHAZADO')">Rechazar</button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!solicitudesSensores.length">
+              <td colspan="8" class="empty">No hay solicitudes de sensores.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</main>

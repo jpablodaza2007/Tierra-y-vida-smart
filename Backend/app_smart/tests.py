@@ -3,6 +3,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
@@ -216,6 +217,7 @@ class CrudPorRolTests(APITestCase):
             {
                 'tipo_sensor': 'Humedad',
                 'id_residuo': residuo.id_residuo,
+                'fecha_entrega_deseada': timezone.localdate().isoformat(),
             },
             format='json',
         )

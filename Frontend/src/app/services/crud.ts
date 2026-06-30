@@ -24,6 +24,10 @@ export class CrudService {
     return this.http.patch(`${this.API_URL}residuos-auditoria/${id}/decision/`, datos);
   }
 
+  responderContraofertaResiduo(id: number, decision: 'aceptar' | 'rechazar'): Observable<any> {
+    return this.http.patch(`${this.API_URL}residuos/${id}/responder-contraoferta/`, { decision });
+  }
+
   crearResiduo(datos: any): Observable<any> {
     return this.http.post(`${this.API_URL}residuos/`, datos);
   }
@@ -56,12 +60,24 @@ export class CrudService {
     return this.http.post(`${this.API_URL}solicitudes-sensor/`, datos);
   }
 
+  listarSolicitudesSensor(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}solicitudes-sensor/`);
+  }
+
   solicitarResiduo(datos: any): Observable<any> {
     return this.http.post(`${this.API_URL}solicitudes-residuo/`, datos);
   }
 
   listarSolicitudesResiduo(): Observable<any[]> {
     return this.http.get<any[]>(`${this.API_URL}solicitudes-residuo/`);
+  }
+
+  decidirSolicitudResiduoAuditoria(id: number, datos: any): Observable<any> {
+    return this.http.patch(`${this.API_URL}solicitudes-residuo/${id}/decision/`, datos);
+  }
+
+  responderContraofertaSolicitudResiduo(id: number, decision: 'aceptar' | 'rechazar'): Observable<any> {
+    return this.http.patch(`${this.API_URL}solicitudes-residuo/${id}/responder-contraoferta/`, { decision });
   }
 
   listarGestiones(): Observable<any[]> {

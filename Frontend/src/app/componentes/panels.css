@@ -186,6 +186,44 @@
   height: 18px;
 }
 
+.sensor-checkbox-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sensor-checkbox-group legend {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.sensor-checkbox-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-grid .sensor-checkbox-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-primary);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.form-grid .sensor-checkbox-option input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary-green);
+}
+
 /* ===== BUTTONS ===== */
 .actions {
   display: flex;
@@ -242,6 +280,16 @@
   transform: translateY(-2px);
 }
 
+.btn-info {
+  color: white;
+  background: #2563eb;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+}
+
 .btn-small {
   padding: 7px 10px;
   color: var(--primary-green);
@@ -252,6 +300,23 @@
 .btn-small:hover {
   background: rgba(46, 204, 113, 0.2);
   border-color: var(--primary-green);
+}
+
+.btn-primary.btn-small {
+  color: white;
+  background: var(--primary-green);
+}
+
+.btn-danger.btn-small {
+  color: white;
+  background: #bf3f3f;
+  border-color: #bf3f3f;
+}
+
+.btn-info.btn-small {
+  color: white;
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
 /* ===== TABLES ===== */
@@ -355,6 +420,10 @@ tr:hover {
   font-weight: 500;
 }
 
+.muted {
+  color: #94a3b8;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .panel-navbar {
@@ -432,6 +501,29 @@ tr:hover {
   .dashboard-header {
     padding: 16px;
   }
+}
+
+.inline-number {
+  width: 128px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+}
+
+.counteroffer-banner {
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.counteroffer-banner .actions {
+  margin-top: 0;
 }
 
 .warning-icon {
@@ -667,6 +759,196 @@ tr:hover {
   border-radius: 12px;
 }
 
+.campesino-page .sensor-toast {
+  margin-top: 16px;
+  padding: 12px 14px;
+  color: #14532d;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.campesino-page .rejection-message {
+  margin: 0;
+  padding: 10px 12px;
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.campesino-page .muted {
+  color: #94a3b8;
+}
+
+.campesino-page .learning-section {
+  display: grid;
+  gap: 22px;
+}
+
+.campesino-page .learning-card {
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.campesino-page .learning-card-header {
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.campesino-page .learning-card-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.campesino-page .learning-about-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.campesino-page .learning-copy h4,
+.campesino-page .residue-column h4,
+.campesino-page .step-card h4 {
+  margin: 0 0 7px;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.campesino-page .learning-copy h4:not(:first-child) {
+  margin-top: 18px;
+}
+
+.campesino-page .learning-about-grid img {
+  width: 100%;
+  max-height: 230px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.campesino-page .learning-intro {
+  margin-bottom: 20px;
+}
+
+.campesino-page .residue-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.campesino-page .residue-column {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.campesino-page .learning-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.campesino-page .learning-item img {
+  width: 62px;
+  height: 62px;
+  flex: 0 0 62px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.campesino-page .learning-item strong,
+.campesino-page .learning-benefit-box strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.campesino-page .learning-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.campesino-page .learning-steps .step-card {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.campesino-page .learning-steps .step-card span {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #2ecc71;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.campesino-page .learning-steps .step-card img {
+  width: 100%;
+  height: 145px;
+  margin-bottom: 12px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.campesino-page .learning-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.campesino-page .learning-benefit-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 26px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.campesino-page .learning-benefit-box:hover {
+  transform: translateY(-4px);
+  border-color: rgba(46, 204, 113, 0.35);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+}
+
+.campesino-page .learning-benefit-icon {
+  margin-bottom: 14px;
+  color: #2ecc71;
+  font-size: 40px;
+  line-height: 1;
+}
+
 @media (max-width: 900px) {
   .campesino-page .panel-navbar,
   .campesino-page .navbar-actions {
@@ -675,6 +957,13 @@ tr:hover {
 
   .campesino-page .navbar-actions {
     justify-content: flex-start;
+  }
+
+  .campesino-page .learning-steps,
+  .campesino-page .learning-benefits-grid,
+  .campesino-page .learning-about-grid,
+  .campesino-page .residue-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -701,6 +990,14 @@ tr:hover {
 
   .campesino-page .panel-section {
     padding: 20px;
+  }
+
+  .campesino-page .learning-card {
+    padding: 18px;
+  }
+
+  .campesino-page .learning-item {
+    align-items: flex-start;
   }
 }
 
@@ -823,6 +1120,73 @@ tr:hover {
   border-bottom: 0;
 }
 
+.contribuyente-page .learning-section {
+  display: grid;
+  gap: 22px;
+}
+
+.contribuyente-page .contenedor-tipos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.contribuyente-page .tipo-card {
+  min-height: 260px;
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #203126;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contribuyente-page .tipo-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(46, 204, 113, 0.45);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+}
+
+.contribuyente-page .tipo-icono {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  place-items: center;
+  border-radius: 12px;
+  color: #1da853;
+  background: #e4f8ec;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.contribuyente-page .tipo-card h3 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.contribuyente-page .tipo-card p {
+  margin: 0 0 16px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.contribuyente-page .tipo-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.contribuyente-page .tipo-card li::marker {
+  color: #2ecc71;
+}
+
 @media (max-width: 900px) {
   .contribuyente-page .panel-navbar,
   .contribuyente-page .navbar-actions {
@@ -831,6 +1195,10 @@ tr:hover {
 
   .contribuyente-page .navbar-actions {
     justify-content: flex-start;
+  }
+
+  .contribuyente-page .contenedor-tipos {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -857,6 +1225,11 @@ tr:hover {
 
   .contribuyente-page .panel-section {
     padding: 20px;
+  }
+
+  .contribuyente-page .contenedor-tipos {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }
 
