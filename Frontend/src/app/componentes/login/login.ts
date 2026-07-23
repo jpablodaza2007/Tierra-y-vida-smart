@@ -14,7 +14,8 @@ import { AuthService } from '../../services/auth';
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, GoogleSigninButtonModule],
-  templateUrl: './login.html'
+  templateUrl: './login.html',
+  styleUrl: './login.css'
 })
 export class LoginComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);

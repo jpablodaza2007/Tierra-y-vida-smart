@@ -4,7 +4,13 @@ import { authGuard } from './services/auth.guard';
 export const routes: Routes = [
     {
         path: '',
-        redirectTo: 'login',
+        pathMatch: 'full',
+        loadComponent: () => import('./componentes/home/home').then(m => m.HomeComponent),
+        title: 'Inicio'
+    },
+    {
+        path: 'home',
+        redirectTo: '',
         pathMatch: 'full'
     },
     {
@@ -74,6 +80,6 @@ export const routes: Routes = [
     {
 >>>>>>> Stashed changes
         path: '**',
-        redirectTo: 'login'
+        redirectTo: ''
     }
 ];
