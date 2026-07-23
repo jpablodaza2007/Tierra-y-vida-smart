@@ -44,6 +44,35 @@ export const routes: Routes = [
         title: 'Panel de Alcaldía'
     },
     {
+<<<<<<< Updated upstream
+=======
+        path: 'admin',
+        pathMatch: 'full',
+        redirectTo: 'admin/contribuyentes'
+    },
+    {
+        path: 'admin/contribuyentes',
+        loadComponent: () => import('./componentes/admin-contribuyentes/admin-contribuyentes.component').then(m => m.AdminContribuyentesComponent),
+        canActivate: [authGuard],
+        data: { roles: ['admin'] },
+        title: 'Solicitudes de Contribuyentes'
+    },
+    {
+        path: 'admin/alcaldias',
+        loadComponent: () => import('./componentes/admin-alcaldias/admin-alcaldias.component').then(m => m.AdminAlcaldiasComponent),
+        canActivate: [authGuard],
+        data: { roles: ['admin'] },
+        title: 'Solicitudes de Alcaldías'
+    },
+    {
+        path: 'admin/sensores',
+        loadComponent: () => import('./componentes/admin-sensores/admin-sensores.component').then(m => m.AdminSensoresComponent),
+        canActivate: [authGuard],
+        data: { roles: ['admin'] },
+        title: 'Solicitudes de Sensores'
+    },
+    {
+>>>>>>> Stashed changes
         path: '**',
         redirectTo: 'login'
     }
