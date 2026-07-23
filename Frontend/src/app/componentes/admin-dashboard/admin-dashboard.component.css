@@ -38,6 +38,38 @@
   color: #76e4b1;
 }
 
+<<<<<<< HEAD
+.navbar-actions,
+.navbar-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-actions {
+  justify-content: flex-end;
+}
+
+.nav-link {
+  padding: 9px 12px;
+  color: #cbd5e1;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: #76e4b1;
+  background: rgba(118, 228, 177, 0.09);
+  border-color: rgba(118, 228, 177, 0.3);
+}
+
+=======
+>>>>>>> origin/main
 .btn-nav {
   padding: 9px 15px;
   color: #e5eef7;
@@ -97,6 +129,35 @@
   font-size: 1.18rem;
 }
 
+<<<<<<< HEAD
+.search-bar {
+  margin-bottom: 16px;
+}
+
+.search-bar input {
+  box-sizing: border-box;
+  width: min(460px, 100%);
+  min-height: 42px;
+  padding: 10px 13px;
+  color: #e5eef7;
+  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #76e4b1;
+  box-shadow: 0 0 0 3px rgba(118, 228, 177, 0.12);
+}
+
+.search-bar input::placeholder {
+  color: #94a3b8;
+}
+
+=======
+>>>>>>> origin/main
 .table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -262,6 +323,13 @@ tbody tr:last-child td {
     padding-top: 30px;
   }
 
+<<<<<<< HEAD
+  .navbar-actions {
+    justify-content: space-between;
+  }
+
+=======
+>>>>>>> origin/main
   .admin-section {
     padding: 16px;
   }
