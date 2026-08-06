@@ -2,13 +2,14 @@ import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { SiteFooterComponent } from '../site-footer/site-footer';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
 
 @Component({
   selector: 'app-panel-campesino',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SiteFooterComponent],
   templateUrl: './panel-campesino.html',
   styleUrl: '../panels.css'
 })

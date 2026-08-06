@@ -3,13 +3,14 @@ import { NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { SiteFooterComponent } from '../site-footer/site-footer';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
 
 @Component({
   selector: 'app-panel-contribuyente',
   standalone: true,
-  imports: [FormsModule, NgIf, RouterLink],
+  imports: [FormsModule, NgIf, RouterLink, SiteFooterComponent],
   templateUrl: './panel-contribuyente.html',
   styleUrl: '../panels.css'
 })

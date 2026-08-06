@@ -2,13 +2,14 @@ import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { SiteFooterComponent } from '../site-footer/site-footer';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
 
 @Component({
   selector: 'app-panel-alcaldia',
   standalone: true,
-  imports: [FormsModule, DatePipe, RouterLink],
+  imports: [FormsModule, DatePipe, RouterLink, SiteFooterComponent],
   templateUrl: './panel-alcaldia.html',
   styleUrl: '../panels.css'
 })
