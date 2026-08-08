@@ -42,12 +42,16 @@
           <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.precio_ofrecido_campesino" name="precioOfrecidoCampesino" required>
         </label>
 
-        <label>Ubicación (dirección / barrio)
-          <input [(ngModel)]="solicitudResiduo.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
+        <label>Ubicación actual (GPS)
+          <input [value]="solicitudResiduo.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly>
         </label>
 
         <div class="actions">
-          <button class="btn btn-primary" [disabled]="residuoForm.invalid || solicitudResiduoEnviada">Enviar solicitud</button>
+          <button type="button" class="btn btn-small" (click)="obtenerUbicacionResiduo()">Obtener mi ubicación actual</button>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" [disabled]="residuoForm.invalid || solicitudResiduoEnviada || solicitudResiduo.latitud === null || solicitudResiduo.longitud === null">Enviar solicitud</button>
         </div>
       </form>
 
@@ -147,7 +151,7 @@
                   [name]="'solicitudSensor' + tipoSensorDisponible"
                   [ngModel]="solicitud.tipo_sensores.includes(tipoSensorDisponible)"
                   (ngModelChange)="alternarSensorSolicitud(tipoSensorDisponible, $event)"
-                  [disabled]="solicitudSensorEnviada"
+                  [disabled]="solicitudSensorEnviada || solicitudSensorEnviandose"
                 >
                 <span>{{ tipoSensorDisponible }}</span>
               </label>
@@ -161,13 +165,13 @@
             [(ngModel)]="solicitud.fecha_entrega_deseada"
             name="fechaEntregaDeseada"
             [min]="fechaMinimaEntrega"
-            [disabled]="solicitudSensorEnviada"
+            [disabled]="solicitudSensorEnviada || solicitudSensorEnviandose"
             required
           >
         </label>
 
         <div class="actions">
-          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || !haySensoresSeleccionados() || solicitudSensorEnviada">Enviar solicitud</button>
+          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || !haySensoresSeleccionados() || solicitudSensorEnviada || solicitudSensorEnviandose">Enviar solicitud</button>
         </div>
       </form>
 
@@ -175,10 +179,22 @@
         <div class="sensor-toast" role="status">{{ mensajeConfirmacionSensor }}</div>
       }
       @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-      @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
 
       <div class="subsection">
         <h3>Historial de solicitudes de sensores</h3>
+        @for (solicitudSensor of solicitudesSensor; track solicitudSensor.id_solicitud_sensor) {
+          @if (solicitudSensor.estado === 'ACEPTADO' || solicitudSensor.estado === 'EN_CAMINO' || solicitudSensor.estado === 'ENTREGADO') {
+            <article class="item-card">
+              <h3>{{ solicitudSensor.tipo_sensor }}</h3>
+              @if (puedeVincular(solicitudSensor)) {
+                <p>Tu sensor está disponible para activar el monitoreo.</p>
+                <button type="button" class="btn btn-primary" (click)="vincularSensor(solicitudSensor)">Conectar / Vincular sensor</button>
+              } @else {
+                <p>Tu sensor llegará el {{ solicitudSensor.fecha_entrega_deseada }}.</p>
+              }
+            </article>
+          }
+        }
         <div class="table-wrap">
           <table>
             <thead>
@@ -224,12 +240,7 @@
       @if (mostrarFormularioSensor()) {
         <form class="form-grid sensor-edit-form" #form="ngForm" (ngSubmit)="guardar()">
           <label>Tipo de sensor
-            <select [(ngModel)]="tipoSensor" name="tipoSensor" required>
-              <option value="">Selecciona un tipo</option>
-              <option>Temperatura</option>
-              <option>Humedad</option>
-              <option>pH</option>
-            </select>
+            <input [value]="tipoSensor" name="tipoSensor" readonly>
           </label>
 
           <div class="actions">
@@ -250,7 +261,6 @@
             <h3>{{ sensor.tipo_sensor }}</h3>
             <div class="actions">
               <button type="button" class="btn btn-small" (click)="editar(sensor)">Editar</button>
-              <button type="button" class="btn btn-danger btn-small" (click)="eliminar(sensor.id_sensor)">Eliminar</button>
             </div>
           </article>
         } @empty {

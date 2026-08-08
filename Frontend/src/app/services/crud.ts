@@ -64,6 +64,10 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}solicitudes-sensor/`);
   }
 
+  vincularSensor(idSolicitud: number): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/vincular/`, {});
+  }
+
   solicitarResiduo(datos: any): Observable<any> {
     return this.http.post(`${this.API_URL}solicitudes-residuo/`, datos);
   }

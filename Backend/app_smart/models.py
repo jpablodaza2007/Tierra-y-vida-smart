@@ -46,6 +46,8 @@ ESTADO_DICTAMEN_CHOICES = [
     ('pendiente_aprobacion', 'Pendiente de aprobacion'),
     ('aprobado', 'Aprobado'),
     ('rechazado', 'Rechazado'),
+    ('EN_CAMINO', 'En camino'),
+    ('ENTREGADO', 'Entregado'),
 ]
 
 class Campesino(models.Model):
@@ -105,6 +107,8 @@ class SolicitudResiduo(models.Model):
     precio_ofrecido_campesino = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     contraoferta_alcaldia = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     ubicacion = models.CharField(max_length=255, blank=True, null=True)
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     estado = models.CharField(max_length=30, choices=ESTADO_SOLICITUD_RESIDUO_CHOICES, default='PENDIENTE', blank=True)
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
 
@@ -153,6 +157,8 @@ class ResiduoOrganico(models.Model):
     bolsa_compostable = models.BooleanField(default=False)
     tamano_picado = models.CharField(max_length=50, blank=True, null=True)
     ubicacion = models.CharField(max_length=255, blank=True, null=True)
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -164,6 +170,7 @@ class Sensor(models.Model):
     id_sensor = models.AutoField(primary_key=True)
     id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
     tipo_sensor = models.CharField(max_length=50, blank=True, null=True)
+    id_solicitud_sensor = models.OneToOneField('SolicitudSensor', models.DO_NOTHING, db_column='id_solicitud_sensor', blank=True, null=True)
 
     class Meta:
         managed = True

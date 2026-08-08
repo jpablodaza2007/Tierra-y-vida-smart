@@ -625,14 +625,15 @@ class SolicitudSensorView(APIView):
         if any(sensor not in tipos_validos for sensor in tipos_sensores):
             return Response({'error': 'Tipo de sensor invalido. Usa Temperatura, pH o Humedad.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        campesino, _ = Campesino.objects.get_or_create(id_usuario=perfil)
-        for sensor in tipos_sensores:
-            SolicitudSensor.objects.create(
-                id_campesino=campesino,
-                tipo_sensor=sensor,
-                fecha_entrega_deseada=fecha_entrega_deseada,
-                estado='PENDIENTE',
-            )
+        with transaction.atomic():
+            campesino, _ = Campesino.objects.get_or_create(id_usuario=perfil)
+            for sensor in tipos_sensores:
+                SolicitudSensor.objects.create(
+                    id_campesino=campesino,
+                    tipo_sensor=sensor,
+                    fecha_entrega_deseada=fecha_entrega_deseada,
+                    estado='PENDIENTE',
+                )
 
         try:
             sensores_texto = ', '.join(tipos_sensores)
@@ -655,6 +656,35 @@ class SolicitudSensorView(APIView):
             'tipo_sensores': tipos_sensores,
             'fecha_entrega_deseada': fecha_entrega_deseada,
         }, status=status.HTTP_201_CREATED)
+
+
+class VincularSensorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id_solicitud_sensor):
+        perfil = obtener_perfil(request.user)
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden vincular sensores.'}, status=status.HTTP_403_FORBIDDEN)
+
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        solicitud = SolicitudSensor.objects.filter(
+            pk=id_solicitud_sensor,
+            id_campesino=campesino,
+        ).first()
+        if solicitud is None:
+            return Response({'error': 'No se encontró la solicitud de sensor.'}, status=status.HTTP_404_NOT_FOUND)
+
+        fecha_cumplida = solicitud.fecha_entrega_deseada <= timezone.localdate()
+        if solicitud.estado != 'ENTREGADO' and not (solicitud.estado in {'ACEPTADO', 'EN_CAMINO'} and fecha_cumplida):
+            return Response({'error': 'El sensor aún no está disponible para vincular.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sensor, creado = Sensor.objects.get_or_create(
+            id_solicitud_sensor=solicitud,
+            defaults={'id_campesino': campesino, 'tipo_sensor': solicitud.tipo_sensor},
+        )
+        if not creado and sensor.id_campesino_id != campesino.id_campesino:
+            return Response({'error': 'Este sensor no pertenece al campesino autenticado.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(SensorSerializer(sensor).data, status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK)
 
 
 class SolicitudResiduoView(APIView):
@@ -708,7 +738,8 @@ class SolicitudResiduoView(APIView):
         tipo_residuo = request.data.get('tipo_residuo')
         cantidad_kg = request.data.get('cantidad_kg') or request.data.get('cantidad_solicitada')
         precio_ofrecido = request.data.get('precio_ofrecido_campesino')
-        ubicacion = request.data.get('ubicacion')
+        latitud = request.data.get('latitud')
+        longitud = request.data.get('longitud')
         perfil = obtener_perfil(request.user)
 
         if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
@@ -731,8 +762,14 @@ class SolicitudResiduoView(APIView):
         except serializers.ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        if not ubicacion or not str(ubicacion).strip():
-            return Response({'error': 'La ubicación es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            latitud = float(latitud)
+            longitud = float(longitud)
+        except (TypeError, ValueError):
+            return Response({'error': 'Debes permitir la geolocalización para enviar la solicitud.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not -90 <= latitud <= 90 or not -180 <= longitud <= 180:
+            return Response({'error': 'Las coordenadas de ubicación no son válidas.'}, status=status.HTTP_400_BAD_REQUEST)
+        ubicacion = f'Lat: {latitud:.6f}, Lon: {longitud:.6f}'
 
         campesino = Campesino.objects.filter(id_usuario=perfil).first()
         if campesino is None:
@@ -744,7 +781,9 @@ class SolicitudResiduoView(APIView):
             cantidad_kg=cantidad_kg,
             cantidad_solicitada=cantidad_kg,
             precio_ofrecido_campesino=precio_ofrecido,
-            ubicacion=str(ubicacion).strip(),
+            ubicacion=ubicacion,
+            latitud=latitud,
+            longitud=longitud,
             estado='PENDIENTE',
         )
 
@@ -970,12 +1009,6 @@ class SolicitudSensorAdminViewSet(viewsets.ReadOnlyModelViewSet):
                 solicitud.motivo_rechazo = ''
             solicitud.save(update_fields=['estado', 'motivo_rechazo'])
 
-            if estado == 'ACEPTADO':
-                Sensor.objects.create(
-                    id_campesino=solicitud.id_campesino,
-                    tipo_sensor=solicitud.tipo_sensor,
-                )
-
             try:
                 enviar_correo_dictamen(
                     usuario_auth,
@@ -991,6 +1024,20 @@ class SolicitudSensorAdminViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
 
+        return Response(self.get_serializer(solicitud).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'])
+    def entrega(self, request, pk=None):
+        solicitud = self.get_object()
+        estado = str(request.data.get('estado') or '').upper()
+        if estado not in {'EN_CAMINO', 'ENTREGADO'}:
+            return Response({'error': 'El estado debe ser EN_CAMINO o ENTREGADO.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.estado not in {'ACEPTADO', 'EN_CAMINO'}:
+            return Response({'error': 'La solicitud debe estar aceptada antes de actualizar la entrega.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.estado == 'EN_CAMINO' and estado == 'EN_CAMINO':
+            return Response({'error': 'La solicitud ya está en camino.'}, status=status.HTTP_400_BAD_REQUEST)
+        solicitud.estado = estado
+        solicitud.save(update_fields=['estado'])
         return Response(self.get_serializer(solicitud).data, status=status.HTTP_200_OK)
 
 
@@ -1251,7 +1298,16 @@ class SensorListCreateView(RolQuerysetMixin, ListCreateAPIView):
     def get_queryset(self):
         perfil = self.perfil_actual()
         campesino, _ = Campesino.objects.get_or_create(id_usuario=perfil)
-        return Sensor.objects.filter(id_campesino=campesino).order_by('-id_sensor')
+        return Sensor.objects.filter(
+            id_campesino=campesino,
+            id_solicitud_sensor__isnull=False,
+        ).order_by('-id_sensor')
+
+    def post(self, request, *args, **kwargs):
+        return Response(
+            {'error': 'Los sensores solo se activan al vincular una solicitud entregada.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def perform_create(self, serializer):
         perfil = self.perfil_actual()

@@ -31,6 +31,7 @@ from .views import (
     SolicitudSensorAdminViewSet,
     SolicitudResiduoView,
     SolicitudSensorView,
+    VincularSensorView,
 )
 
 router = DefaultRouter()
@@ -61,6 +62,7 @@ urlpatterns = [
     path('residuos-disponibles/', ResiduoDisponibleView.as_view(), name='residuos_disponibles'),
     path('residuos/<int:id_residuo>/', ResiduoDetailView.as_view(), name='residuo_detalle'),
     path('solicitudes-sensor/', SolicitudSensorView.as_view(), name='solicitudes_sensor'),
+    path('solicitudes-sensor/<int:id_solicitud_sensor>/vincular/', VincularSensorView.as_view(), name='vincular_sensor'),
     path('solicitudes-residuo/', SolicitudResiduoView.as_view(), name='solicitudes_residuo'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/decision/', AuditoriaSolicitudResiduoDecisionView.as_view(), name='solicitudes_residuo_decision'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/responder-contraoferta/', RespuestaContraofertaSolicitudResiduoView.as_view(), name='solicitudes_residuo_responder_contraoferta'),

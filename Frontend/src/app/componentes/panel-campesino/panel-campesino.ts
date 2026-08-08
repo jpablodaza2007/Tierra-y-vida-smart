@@ -25,8 +25,9 @@ export class PanelCampesinoComponent implements OnInit {
   mensajeConfirmacionSensor = '';
   seccionActual: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo' = 'sensores';
   solicitud = { tipo_sensores: [] as string[], fecha_entrega_deseada: '' };
-  solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '' };
+  solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
   solicitudSensorEnviada = false;
+  solicitudSensorEnviandose = false;
   solicitudResiduoEnviada = false;
   asignaciones: any[] = [];
   solicitudesResiduo: any[] = [];
@@ -46,6 +47,7 @@ export class PanelCampesinoComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    this.obtenerUbicacionResiduo();
   }
 
   cambiarSeccion(seccion: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo'): void {
@@ -114,7 +116,38 @@ export class PanelCampesinoComponent implements OnInit {
   }
 
   mostrarFormularioSensor(): boolean {
-    return this.sensores.length > 0 || this.editandoId !== null;
+    return this.editandoId !== null;
+  }
+
+  obtenerUbicacionResiduo(): void {
+    if (!navigator.geolocation) {
+      this.mensajeError = 'Tu navegador no admite geolocalización.';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        this.solicitudResiduo.latitud = coords.latitude;
+        this.solicitudResiduo.longitud = coords.longitude;
+        this.solicitudResiduo.ubicacion = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+        this.mensajeError = '';
+        this.cdr.detectChanges();
+      },
+      () => { this.mensajeError = 'No se pudo obtener tu ubicación. Autoriza el permiso de GPS e inténtalo de nuevo.'; this.cdr.detectChanges(); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  }
+
+  puedeVincular(solicitud: any): boolean {
+    if (solicitud.estado === 'ENTREGADO') return true;
+    return ['ACEPTADO', 'EN_CAMINO'].includes(solicitud.estado)
+      && solicitud.fecha_entrega_deseada <= this.obtenerFechaLocalActual();
+  }
+
+  vincularSensor(solicitud: any): void {
+    this.crud.vincularSensor(solicitud.id_solicitud_sensor).subscribe({
+      next: () => { this.mensajeExito = 'Sensor vinculado correctamente. Ya está activo en el monitoreo.'; this.cargar(); },
+      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo vincular el sensor.'),
+    });
   }
 
   alternarSensorSolicitud(tipoSensor: string, seleccionado: boolean): void {
@@ -136,8 +169,7 @@ export class PanelCampesinoComponent implements OnInit {
   }
 
   solicitarSensor(): void {
-    if (this.solicitudSensorEnviada) {
-      this.mensajeExito = 'Ya se envió la solicitud de sensor. La alcaldía recibirá la solicitud.';
+    if (this.solicitudSensorEnviada || this.solicitudSensorEnviandose) {
       return;
     }
 
@@ -156,19 +188,22 @@ export class PanelCampesinoComponent implements OnInit {
       return;
     }
 
+    this.solicitudSensorEnviandose = true;
     this.crud.solicitarSensor({
       tipo_sensores: sensoresSeleccionados,
       fecha_entrega_deseada: this.solicitud.fecha_entrega_deseada,
     }).subscribe({
       next: () => {
         this.solicitudSensorEnviada = true;
-        this.mensajeExito = 'Ya se envió la solicitud de sensor. La alcaldía recibirá la solicitud.';
         this.mensajeConfirmacionSensor = '¡Su sensor ha sido solicitado con éxito! El administrador revisará su petición.';
-        this.mensajeExito = this.mensajeConfirmacionSensor;
         this.mensajeError = '';
+        this.solicitudSensorEnviandose = false;
         this.cargar();
       },
-      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo enviar la solicitud.')
+      error: (error) => {
+        this.solicitudSensorEnviandose = false;
+        this.mensajeError = this.obtenerMensajeError(error, 'No se pudo enviar la solicitud.');
+      }
     });
   }
 

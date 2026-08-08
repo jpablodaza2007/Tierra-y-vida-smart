@@ -38,7 +38,6 @@
   color: #76e4b1;
 }
 
-<<<<<<< HEAD
 .navbar-actions,
 .navbar-links {
   display: flex;
@@ -68,8 +67,6 @@
   border-color: rgba(118, 228, 177, 0.3);
 }
 
-=======
->>>>>>> origin/main
 .btn-nav {
   padding: 9px 15px;
   color: #e5eef7;
@@ -129,7 +126,6 @@
   font-size: 1.18rem;
 }
 
-<<<<<<< HEAD
 .search-bar {
   margin-bottom: 16px;
 }
@@ -156,8 +152,6 @@
   color: #94a3b8;
 }
 
-=======
->>>>>>> origin/main
 .table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -323,13 +317,10 @@ tbody tr:last-child td {
     padding-top: 30px;
   }
 
-<<<<<<< HEAD
   .navbar-actions {
     justify-content: space-between;
   }
 
-=======
->>>>>>> origin/main
   .admin-section {
     padding: 16px;
   }

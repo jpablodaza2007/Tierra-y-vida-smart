@@ -35,6 +35,7 @@ export class PanelContribuyenteComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    this.obtenerUbicacionActual();
   }
 
   nuevoFormulario() {
@@ -43,6 +44,8 @@ export class PanelContribuyenteComponent implements OnInit {
       cantidad_kg: null as number | null,
       precio_sugerido_contribuyente: null as number | null,
       ubicacion: '',
+      latitud: null as number | null,
+      longitud: null as number | null,
       dias_almacenamiento: null as number | null,
       metodo_conservacion: '',
       lista_materiales: '',
@@ -76,8 +79,8 @@ export class PanelContribuyenteComponent implements OnInit {
     if (this.formulario.precio_sugerido_contribuyente == null || Number(this.formulario.precio_sugerido_contribuyente) <= 0) {
       return 'Debes ingresar el precio sugerido que esperas obtener.';
     }
-    if (!this.formulario.ubicacion?.trim()) {
-      return 'Debes ingresar tu ubicacion.';
+    if (this.formulario.latitud === null || this.formulario.longitud === null) {
+      return 'Debes permitir la ubicación GPS para continuar.';
     }
     if (this.formulario.dias_almacenamiento == null || Number(this.formulario.dias_almacenamiento) < 0) {
       return 'Debes indicar los dias de almacenamiento.';
@@ -111,6 +114,24 @@ export class PanelContribuyenteComponent implements OnInit {
     this.mensajeError = '';
   }
 
+  obtenerUbicacionActual(): void {
+    if (!navigator.geolocation) {
+      this.mensajeError = 'Tu navegador no admite geolocalización.';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        this.formulario.latitud = coords.latitude;
+        this.formulario.longitud = coords.longitude;
+        this.formulario.ubicacion = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+        this.mensajeError = '';
+        this.cdr.detectChanges();
+      },
+      () => { this.mensajeError = 'No se pudo obtener tu ubicación. Autoriza el GPS e inténtalo de nuevo.'; this.cdr.detectChanges(); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  }
+
   guardar(): void {
     const error = this.validarResiduo();
     if (error) {
@@ -141,6 +162,8 @@ export class PanelContribuyenteComponent implements OnInit {
       cantidad_kg: Number(residuo.cantidad_kg),
       precio_sugerido_contribuyente: residuo.precio_sugerido_contribuyente == null ? null : Number(residuo.precio_sugerido_contribuyente),
       ubicacion: residuo.ubicacion || '',
+      latitud: residuo.latitud == null ? null : Number(residuo.latitud),
+      longitud: residuo.longitud == null ? null : Number(residuo.longitud),
       dias_almacenamiento: residuo.dias_almacenamiento ?? null,
       metodo_conservacion: residuo.metodo_conservacion || '',
       lista_materiales: residuo.lista_materiales || '',

@@ -41,9 +41,13 @@
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.precio_sugerido_contribuyente" name="precio_sugerido_contribuyente" required>
         </label>
 
-        <label>Ubicacion (direccion / barrio)
-          <input [(ngModel)]="formulario.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
+        <label>Ubicación actual (GPS)
+          <input [value]="formulario.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly>
         </label>
+
+        <div class="actions">
+          <button type="button" class="btn btn-small" (click)="obtenerUbicacionActual()">Obtener mi ubicación actual</button>
+        </div>
 
         <label>Dias de almacenamiento
           <input type="number" min="0" step="1" [(ngModel)]="formulario.dias_almacenamiento" name="dias_almacenamiento" required>

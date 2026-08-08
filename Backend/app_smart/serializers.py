@@ -84,6 +84,8 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             'precio_sugerido_contribuyente',
             'contraoferta_alcaldia',
             'ubicacion',
+            'latitud',
+            'longitud',
             'estado',
             'dias_almacenamiento',
             'metodo_conservacion',
@@ -101,7 +103,8 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             'tipo_residuo': {'required': True, 'allow_blank': False},
             'cantidad_kg': {'required': True},
             'precio_sugerido_contribuyente': {'required': True},
-            'ubicacion': {'required': True, 'allow_blank': False},
+            'latitud': {'required': True},
+            'longitud': {'required': True},
             'dias_almacenamiento': {'required': True},
             'metodo_conservacion': {'required': True, 'allow_blank': False},
             'lista_materiales': {'required': True, 'allow_blank': False},
@@ -150,6 +153,16 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Los dias de almacenamiento no pueden ser negativos.')
         return value
 
+    def validate_latitud(self, value):
+        if value is None or not -90 <= value <= 90:
+            raise serializers.ValidationError('La latitud GPS no es válida.')
+        return value
+
+    def validate_longitud(self, value):
+        if value is None or not -180 <= value <= 180:
+            raise serializers.ValidationError('La longitud GPS no es válida.')
+        return value
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if not attrs.get('presencia_procesados'):
@@ -160,14 +173,16 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ausencia_origen_animal': 'Debes confirmar que el residuo esta libre de carnes, lacteos o grasas.'
             })
+        if attrs.get('latitud') is not None and attrs.get('longitud') is not None:
+            attrs['ubicacion'] = f"Lat: {attrs['latitud']}, Lon: {attrs['longitud']}"
         return attrs
 
 
 class SensorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sensor
-        fields = ['id_sensor', 'tipo_sensor']
-        read_only_fields = ['id_sensor']
+        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
+        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
 
 
 class RegistroAdminSerializer(serializers.ModelSerializer):
