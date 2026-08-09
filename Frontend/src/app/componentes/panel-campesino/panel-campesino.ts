@@ -26,6 +26,7 @@ export class PanelCampesinoComponent implements OnInit {
   seccionActual: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo' = 'sensores';
   solicitud = { tipo_sensores: [] as string[], fecha_entrega_deseada: '' };
   solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
+  precioOfrecidoTexto = '';
   solicitudSensorEnviada = false;
   solicitudSensorEnviandose = false;
   solicitudResiduoEnviada = false;
@@ -241,6 +242,22 @@ export class PanelCampesinoComponent implements OnInit {
     });
   }
 
+  actualizarPrecioOfrecido(valor: string): void {
+    this.precioOfrecidoTexto = valor;
+    this.solicitudResiduo.precio_ofrecido_campesino = this.convertirMonedaANumero(valor);
+  }
+
+  editarPrecioOfrecido(): void {
+    const precio = this.solicitudResiduo.precio_ofrecido_campesino;
+    this.precioOfrecidoTexto = precio == null ? '' : String(precio);
+  }
+
+  formatearPrecioOfrecido(): void {
+    const precio = this.convertirMonedaANumero(this.precioOfrecidoTexto);
+    this.solicitudResiduo.precio_ofrecido_campesino = precio;
+    this.precioOfrecidoTexto = precio == null ? '' : this.formatearMoneda(precio);
+  }
+
   responderContraofertaSolicitud(solicitud: any, decision: 'aceptar' | 'rechazar'): void {
     this.crud.responderContraofertaSolicitudResiduo(solicitud.id_solicitud_residuo, decision).subscribe({
       next: () => {
@@ -276,6 +293,31 @@ export class PanelCampesinoComponent implements OnInit {
     const ahora = new Date();
     const fechaLocal = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000);
     return fechaLocal.toISOString().slice(0, 10);
+  }
+
+  private formatearMoneda(valor: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(valor);
+  }
+
+  private convertirMonedaANumero(valor: string): number | null {
+    const texto = (valor || '').replace(/[^0-9,.-]/g, '');
+    if (!texto || !/\d/.test(texto)) return null;
+
+    const ultimoPunto = texto.lastIndexOf('.');
+    const ultimaComa = texto.lastIndexOf(',');
+    const indiceDecimal = Math.max(ultimoPunto, ultimaComa);
+    const decimales = indiceDecimal >= 0 ? texto.length - indiceDecimal - 1 : 0;
+    const tieneDecimal = indiceDecimal >= 0 && decimales > 0 && decimales <= 2;
+    const normalizado = tieneDecimal
+      ? `${texto.slice(0, indiceDecimal).replace(/[^0-9]/g, '')}.${texto.slice(indiceDecimal + 1).replace(/[^0-9]/g, '')}`
+      : texto.replace(/[^0-9]/g, '');
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : null;
   }
 
   private obtenerMensajeError(error: any, mensajePorDefecto: string): string {

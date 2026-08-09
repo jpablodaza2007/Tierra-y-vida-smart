@@ -28,10 +28,12 @@ from .views import (
     ResiduoListCreateView,
     SensorDetailView,
     SensorListCreateView,
+    SimularLecturaIoTView,
     SolicitudSensorAdminViewSet,
     SolicitudResiduoView,
     SolicitudSensorView,
     VincularSensorView,
+    TelemetriaIoTView,
 )
 
 router = DefaultRouter()
@@ -73,4 +75,6 @@ urlpatterns = [
     path('gestiones/<int:id_gestion>/', GestionDetailView.as_view(), name='gestion_detalle'),
     path('opciones-logistica/', OpcionesLogisticaView.as_view(), name='opciones_logistica'),
     path('inventario-alcaldia/', InventarioAlcaldiaView.as_view(), name='inventario_alcaldia'),
+    path('iot/telemetria/', TelemetriaIoTView.as_view(), name='iot_telemetria'),
+    path('iot/simular-lectura/', SimularLecturaIoTView.as_view(), name='iot_simular_lectura'),
 ] + router.urls

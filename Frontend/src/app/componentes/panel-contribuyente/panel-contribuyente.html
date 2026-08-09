@@ -38,7 +38,7 @@
         </label>
 
         <label>Precio Sugerido ($) que espera obtener
-          <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.precio_sugerido_contribuyente" name="precio_sugerido_contribuyente" required>
+          <input type="text" inputmode="decimal" [(ngModel)]="precioSugeridoTexto" (ngModelChange)="actualizarPrecioSugerido($event)" (focus)="editarPrecioSugerido()" (blur)="formatearPrecioSugerido()" name="precio_sugerido_contribuyente" placeholder="$ 0,00" required>
         </label>
 
         <label>Ubicación actual (GPS)

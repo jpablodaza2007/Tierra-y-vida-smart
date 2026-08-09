@@ -117,15 +117,50 @@ class SolicitudResiduo(models.Model):
         db_table = 'solicitud_residuo'
 
 
-class LecturaSensor(models.Model):
-    id_lectura = models.AutoField(primary_key=True)
-    id_sensor = models.ForeignKey('Sensor', models.DO_NOTHING, db_column='id_sensor', blank=True, null=True)
-    valor_lectura = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    fecha_hora = models.DateTimeField(blank=True, null=True)
+class DispositivoSensor(models.Model):
+    """Dispositivo físico asignado a un campesino para enviar telemetría."""
+
+    class ReferenciaHardware(models.TextChoices):
+        ESP32_DHT22_TEMP = 'ESP32_DHT22_TEMP', 'ESP32 + DHT22 (temperatura y humedad)'
+        ESP32_CAPACITIVO_HUMEDAD_SUELO = (
+            'ESP32_CAPACITIVO_HUMEDAD_SUELO',
+            'ESP32 + sensor capacitivo de humedad de suelo',
+        )
+        ESP32_PH_SUELO = 'ESP32_PH_SUELO', 'ESP32 + sensor de pH de suelo'
+
+    class Estado(models.TextChoices):
+        PENDIENTE_ENTREGA = 'PENDIENTE_ENTREGA', 'Pendiente de entrega'
+        EN_CAMINO = 'EN_CAMINO', 'En camino'
+        ENTREGADO = 'ENTREGADO', 'Entregado'
+        VINCULADO_ACTIVO = 'VINCULADO_ACTIVO', 'Vinculado y activo'
+
+    codigo_mac = models.CharField(max_length=100, unique=True)
+    campesino = models.ForeignKey('Usuario', on_delete=models.PROTECT, related_name='dispositivos_sensores')
+    referencia_hardware = models.CharField(max_length=40, choices=ReferenciaHardware.choices)
+    estado = models.CharField(max_length=25, choices=Estado.choices, default=Estado.PENDIENTE_ENTREGA)
+    fecha_vinculacion = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        managed = True
+        db_table = 'dispositivo_sensor'
+
+    def __str__(self):
+        return self.codigo_mac
+
+
+class LecturaSensor(models.Model):
+    """Lectura normalizada recibida desde un dispositivo IoT."""
+
+    id_lectura = models.AutoField(primary_key=True)
+    dispositivo = models.ForeignKey(DispositivoSensor, on_delete=models.CASCADE, related_name='lecturas')
+    temperatura_ambiente = models.FloatField(null=True, blank=True)
+    humedad_ambiente = models.FloatField(null=True, blank=True)
+    humedad_suelo_porcentaje = models.FloatField(null=True, blank=True)
+    ph_suelo = models.FloatField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
         db_table = 'lectura_sensor'
+        ordering = ['-timestamp']
 
 
 class RecomendacionIa(models.Model):
