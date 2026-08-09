@@ -115,4 +115,8 @@ export class CrudService {
   listarInventario(): Observable<any[]> {
     return this.http.get<any[]>(`${this.API_URL}inventario-alcaldia/`);
   }
+
+  diagnosticarCultivo(datos: any): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}ia-diagnostico-cultivo/`, datos);
+  }
 }

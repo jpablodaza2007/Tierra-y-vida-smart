@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { SiteFooterComponent } from '../site-footer/site-footer';
 import { AuthService } from '../../services/auth';
 import { CrudService } from '../../services/crud';
+import { timeout } from 'rxjs';
 
 @Component({
   selector: 'app-panel-campesino',
@@ -35,6 +36,21 @@ export class PanelCampesinoComponent implements OnInit {
   solicitudesSensor: any[] = [];
   pdfUrlSegura: SafeResourceUrl = '';
   fechaMinimaEntrega = this.obtenerFechaLocalActual();
+  diagnosticoCultivo: any = null;
+  diagnosticoCargando = false;
+  mensajeDiagnostico = '';
+  formularioDiagnostico = {
+    tipo_cultivo: 'Papa',
+    fase_cultivo: 'Crecimiento',
+    area_cultivo_m2: null as number | null,
+    origen_datos: 'SENSOR' as 'SENSOR' | 'MANUAL',
+    temperatura: null as number | null,
+    humedad_suelo: null as number | null,
+    ph_suelo: null as number | null,
+    observaciones_visuales: '',
+    latitud: null as number | null,
+    longitud: null as number | null,
+  };
 
   constructor(
     public auth: AuthService,
@@ -136,6 +152,52 @@ export class PanelCampesinoComponent implements OnInit {
       () => { this.mensajeError = 'No se pudo obtener tu ubicación. Autoriza el permiso de GPS e inténtalo de nuevo.'; this.cdr.detectChanges(); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
     );
+  }
+
+  obtenerUbicacionDiagnostico(): void {
+    if (!navigator.geolocation) {
+      this.mensajeDiagnostico = 'Tu navegador no admite geolocalización.';
+      this.cdr.detectChanges();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        this.formularioDiagnostico.latitud = coords.latitude;
+        this.formularioDiagnostico.longitud = coords.longitude;
+        this.mensajeDiagnostico = 'Ubicación GPS capturada correctamente.';
+        this.cdr.detectChanges();
+      },
+      () => {
+        this.mensajeDiagnostico = 'No se pudo obtener la ubicación. Autoriza el permiso GPS e inténtalo de nuevo.';
+        this.cdr.detectChanges();
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  }
+
+  solicitarDiagnosticoCultivo(): void {
+    if (!this.formularioDiagnostico.area_cultivo_m2 || this.formularioDiagnostico.area_cultivo_m2 <= 0) {
+      this.mensajeDiagnostico = 'Ingresa un área de cultivo válida en m².';
+      return;
+    }
+    this.diagnosticoCargando = true;
+    this.mensajeDiagnostico = '';
+    this.diagnosticoCultivo = null;
+    // Red de seguridad de UI: ninguna solicitud puede dejar el botón bloqueado.
+    this.crud.diagnosticarCultivo(this.formularioDiagnostico).pipe(timeout(40000)).subscribe({
+      next: (resultado) => {
+        this.diagnosticoCultivo = resultado;
+        this.diagnosticoCargando = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        this.diagnosticoCargando = false;
+        this.mensajeDiagnostico = error?.name === 'TimeoutError'
+          ? 'El análisis tardó demasiado. Inténtalo de nuevo; el sistema usará el respaldo local si Gemini no responde.'
+          : this.obtenerMensajeError(error, 'No se pudo generar el diagnóstico.');
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   puedeVincular(solicitud: any): boolean {
