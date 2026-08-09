@@ -21,6 +21,7 @@ export class PanelContribuyenteComponent implements OnInit {
   mensajeError = '';
   seccionActual: 'registro' | 'materiales' | 'residuos' = 'registro';
   formulario = this.nuevoFormulario();
+  precioSugeridoTexto = '';
   pdfUrlSegura: SafeResourceUrl = '';
 
   constructor(
@@ -175,6 +176,7 @@ export class PanelContribuyenteComponent implements OnInit {
       tamano_picado: residuo.tamano_picado || '',
       estado: residuo.estado
     };
+    this.formatearPrecioSugerido();
   }
 
   eliminar(id: number): void {
@@ -200,6 +202,7 @@ export class PanelContribuyenteComponent implements OnInit {
   cancelar(): void {
     this.editandoId = null;
     this.formulario = this.nuevoFormulario();
+    this.precioSugeridoTexto = '';
     this.mensajeError = '';
   }
 
@@ -215,5 +218,46 @@ export class PanelContribuyenteComponent implements OnInit {
     if (Array.isArray(valor)) return valor[0];
     if (typeof valor === 'string') return valor;
     return '';
+  }
+
+  actualizarPrecioSugerido(valor: string): void {
+    this.precioSugeridoTexto = valor;
+    this.formulario.precio_sugerido_contribuyente = this.convertirMonedaANumero(valor);
+  }
+
+  editarPrecioSugerido(): void {
+    const precio = this.formulario.precio_sugerido_contribuyente;
+    this.precioSugeridoTexto = precio == null ? '' : String(precio);
+  }
+
+  formatearPrecioSugerido(): void {
+    const precio = this.convertirMonedaANumero(this.precioSugeridoTexto || String(this.formulario.precio_sugerido_contribuyente ?? ''));
+    this.formulario.precio_sugerido_contribuyente = precio;
+    this.precioSugeridoTexto = precio == null ? '' : this.formatearMoneda(precio);
+  }
+
+  private formatearMoneda(valor: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(valor);
+  }
+
+  private convertirMonedaANumero(valor: string): number | null {
+    const texto = (valor || '').replace(/[^0-9,.-]/g, '');
+    if (!texto || !/\d/.test(texto)) return null;
+
+    const ultimoPunto = texto.lastIndexOf('.');
+    const ultimaComa = texto.lastIndexOf(',');
+    const indiceDecimal = Math.max(ultimoPunto, ultimaComa);
+    const decimales = indiceDecimal >= 0 ? texto.length - indiceDecimal - 1 : 0;
+    const tieneDecimal = indiceDecimal >= 0 && decimales > 0 && decimales <= 2;
+    const normalizado = tieneDecimal
+      ? `${texto.slice(0, indiceDecimal).replace(/[^0-9]/g, '')}.${texto.slice(indiceDecimal + 1).replace(/[^0-9]/g, '')}`
+      : texto.replace(/[^0-9]/g, '');
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : null;
   }
 }

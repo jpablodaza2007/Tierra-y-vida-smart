@@ -9,11 +9,54 @@ from .models import (
     GestionLogistica,
     ResiduoOrganico,
     Sensor,
+    LecturaSensor,
     SolicitudResiduo,
     SolicitudSensor,
     Usuario,
     TIPO_RESIDUO_CHOICES,
 )
+
+
+class LecturaSensorSerializer(serializers.ModelSerializer):
+    """Valida el contenido de una lectura sin permitir elegir su dispositivo."""
+
+    class Meta:
+        model = LecturaSensor
+        fields = [
+            'id_lectura',
+            'temperatura_ambiente',
+            'humedad_ambiente',
+            'humedad_suelo_porcentaje',
+            'ph_suelo',
+            'timestamp',
+        ]
+        read_only_fields = ['id_lectura', 'timestamp']
+
+    def validate(self, attrs):
+        campos = (
+            'temperatura_ambiente',
+            'humedad_ambiente',
+            'humedad_suelo_porcentaje',
+            'ph_suelo',
+        )
+        if not any(campo in attrs and attrs[campo] is not None for campo in campos):
+            raise serializers.ValidationError('Debe enviar al menos una medición telemétrica.')
+        return attrs
+
+    def validate_humedad_ambiente(self, value):
+        if value is not None and not 0 <= value <= 100:
+            raise serializers.ValidationError('La humedad ambiente debe estar entre 0 y 100%.')
+        return value
+
+    def validate_humedad_suelo_porcentaje(self, value):
+        if value is not None and not 0 <= value <= 100:
+            raise serializers.ValidationError('La humedad del suelo debe estar entre 0 y 100%.')
+        return value
+
+    def validate_ph_suelo(self, value):
+        if value is not None and not 0 <= value <= 14:
+            raise serializers.ValidationError('El pH del suelo debe estar entre 0 y 14.')
+        return value
 
 class RegistroSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.CharField(write_only=True)

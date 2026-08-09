@@ -1,4 +1,5 @@
 import logging
+import random
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -27,6 +28,7 @@ from .models import (
     Alcaldia,
     Campesino,
     Contribuyente,
+    DispositivoSensor,
     GestionLogistica,
     InventarioAlcaldia,
     ResiduoOrganico,
@@ -41,11 +43,83 @@ from .serializers import (
     RegistroAdminSerializer,
     ResiduoOrganicoSerializer,
     SensorSerializer,
+    LecturaSensorSerializer,
     SolicitudSensorAdminSerializer,
 )
 
 
 VERIFICACION_EMAIL_SALT = 'app_smart.verificacion_email'
+
+
+class TelemetriaIoTView(APIView):
+    """Punto de entrada público para dispositivos IoT identificados por MAC."""
+
+    permission_classes = []
+
+    def post(self, request):
+        codigo_mac = (request.data.get('codigo_mac') or request.data.get('chip_id') or '').strip()
+        if not codigo_mac:
+            return Response(
+                {'codigo_mac': ['Este campo es obligatorio.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dispositivo = DispositivoSensor.objects.select_related('campesino').filter(codigo_mac=codigo_mac).first()
+        if dispositivo is None:
+            return Response({'error': 'Dispositivo no registrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if dispositivo.estado != DispositivoSensor.Estado.VINCULADO_ACTIVO:
+            return Response(
+                {'error': 'El dispositivo no está vinculado y activo.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = LecturaSensorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        lectura = serializer.save(dispositivo=dispositivo)
+        return Response(
+            {
+                'mensaje': 'Lectura registrada.',
+                'campesino_id': dispositivo.campesino_id,
+                'lectura': LecturaSensorSerializer(lectura).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SimularLecturaIoTView(APIView):
+    """Genera datos realistas para validar el tablero antes de instalar hardware."""
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        codigo_mac = (request.data.get('codigo_mac') or request.data.get('chip_id') or '').strip()
+        dispositivo = DispositivoSensor.objects.filter(codigo_mac=codigo_mac).first() if codigo_mac else None
+        if dispositivo is None:
+            return Response(
+                {'codigo_mac': ['Indique el código MAC de un dispositivo registrado.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if dispositivo.estado != DispositivoSensor.Estado.VINCULADO_ACTIVO:
+            return Response(
+                {'error': 'El dispositivo no está vinculado y activo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        lectura = LecturaSensor.objects.create(
+            dispositivo=dispositivo,
+            temperatura_ambiente=round(random.uniform(18, 24), 2),
+            humedad_ambiente=round(random.uniform(55, 85), 2),
+            humedad_suelo_porcentaje=round(random.uniform(40, 80), 2),
+            ph_suelo=round(random.uniform(5.5, 7.0), 2),
+        )
+        return Response(
+            {
+                'mensaje': 'Lectura simulada registrada.',
+                'campesino_id': dispositivo.campesino_id,
+                'lectura': LecturaSensorSerializer(lectura).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 def normalizar_rol(rol):

@@ -39,7 +39,7 @@
         </label>
 
         <label>Precio que ofrece pagar ($)
-          <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.precio_ofrecido_campesino" name="precioOfrecidoCampesino" required>
+          <input type="text" inputmode="decimal" [(ngModel)]="precioOfrecidoTexto" (ngModelChange)="actualizarPrecioOfrecido($event)" (focus)="editarPrecioOfrecido()" (blur)="formatearPrecioOfrecido()" name="precioOfrecidoCampesino" placeholder="$ 0,00" required>
         </label>
 
         <label>Ubicación actual (GPS)
