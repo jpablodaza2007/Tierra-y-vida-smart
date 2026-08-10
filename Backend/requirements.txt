@@ -5,6 +5,10 @@ django-cors-headers==4.9.0
 djangorestframework==3.17.1
 djangorestframework_simplejwt==5.5.1
 google-auth==2.56.3
+# SDK oficial actual de Gemini (google-generativeai está deprecado).
+google-genai>=1.0,<2.0
+# Integra los certificados de confianza de Windows en clientes HTTPS de Python.
+truststore>=0.10,<1.0
 psycopg2-binary==2.9.12
 PyJWT==2.13.0
 requests==2.34.2

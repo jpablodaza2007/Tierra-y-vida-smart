@@ -31,12 +31,14 @@ from .models import (
     DispositivoSensor,
     GestionLogistica,
     InventarioAlcaldia,
+    LecturaSensor,
     ResiduoOrganico,
     Sensor,
     SolicitudResiduo,
     SolicitudSensor,
     Usuario,
 )
+from .services.ia_agronoma import diagnosticar_cultivo
 from .serializers import (
     GestionLogisticaSerializer,
     LoginSerializer,
@@ -49,6 +51,56 @@ from .serializers import (
 
 
 VERIFICACION_EMAIL_SALT = 'app_smart.verificacion_email'
+
+
+class DiagnosticoCultivoSerializer(serializers.Serializer):
+    """Contrato del diagnóstico; las mediciones manuales son opcionales."""
+
+    tipo_cultivo = serializers.CharField(max_length=80)
+    fase_cultivo = serializers.ChoiceField(choices=['Siembra', 'Crecimiento', 'Floración', 'Cosecha'])
+    area_cultivo_m2 = serializers.FloatField(min_value=0.01)
+    origen_datos = serializers.ChoiceField(choices=['SENSOR', 'MANUAL'])
+    temperatura = serializers.FloatField(required=False, allow_null=True)
+    humedad_suelo = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    ph_suelo = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=14)
+    observaciones_visuales = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    latitud = serializers.FloatField(required=False, allow_null=True, min_value=-90, max_value=90)
+    longitud = serializers.FloatField(required=False, allow_null=True, min_value=-180, max_value=180)
+
+
+class DiagnosticoCultivoView(APIView):
+    """Diagnóstico privado del campesino con telemetría y fallback local."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DiagnosticoCultivoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data.copy()
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden solicitar un diagnóstico.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # SENSOR toma la última lectura de un dispositivo vinculado. Los campos
+        # ausentes en telemetría conservan el valor manual para no perder datos.
+        if datos['origen_datos'] == 'SENSOR':
+            lectura = (
+                LecturaSensor.objects.filter(
+                    dispositivo__campesino=perfil,
+                    dispositivo__estado=DispositivoSensor.Estado.VINCULADO_ACTIVO,
+                )
+                .select_related('dispositivo')
+                .first()
+            )
+            if lectura is not None:
+                datos['temperatura'] = lectura.temperatura_ambiente if lectura.temperatura_ambiente is not None else datos.get('temperatura')
+                datos['humedad_suelo'] = lectura.humedad_suelo_porcentaje if lectura.humedad_suelo_porcentaje is not None else datos.get('humedad_suelo')
+                datos['ph_suelo'] = lectura.ph_suelo if lectura.ph_suelo is not None else datos.get('ph_suelo')
+
+        resultado, fuente = diagnosticar_cultivo(datos)
+        # Transparencia: el cliente puede indicar si recibió IA externa o respaldo seguro.
+        resultado['fuente_diagnostico'] = fuente
+        return Response(resultado, status=status.HTTP_200_OK)
 
 
 class TelemetriaIoTView(APIView):
