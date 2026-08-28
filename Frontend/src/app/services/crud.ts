@@ -119,4 +119,10 @@ export class CrudService {
   diagnosticarCultivo(datos: any): Observable<any> {
     return this.http.post<any>(`${this.API_URL}ia-diagnostico-cultivo/`, datos);
   }
+
+  obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null }> {
+    return this.http.get<{ temperatura: number | null; humedad_ambiente: number | null }>(
+      `${this.API_URL}iot/ultima-lectura-thingspeak/`
+    );
+  }
 }

@@ -30,8 +30,8 @@
         <fieldset class="sensor-checkbox-group form-grid-full">
           <legend>Fuente de condiciones</legend>
           <div class="sensor-checkbox-list">
-            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" name="origenDatos" value="SENSOR"><span>Usar datos de mis sensores IoT</span></label>
-            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" name="origenDatos" value="MANUAL"><span>Ingreso manual de condiciones</span></label>
+            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" (ngModelChange)="cambiarOrigenDiagnostico($event)" name="origenDatos" value="SENSOR"><span>Usar datos de mis sensores IoT</span></label>
+            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" (ngModelChange)="cambiarOrigenDiagnostico($event)" name="origenDatos" value="MANUAL"><span>Ingreso manual de condiciones</span></label>
           </div>
         </fieldset>
 
@@ -47,9 +47,9 @@
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formularioDiagnostico.area_cultivo_m2" name="areaCultivo" required>
         </label>
 
-        <p class="muted form-grid-full">@if (formularioDiagnostico.origen_datos === 'SENSOR') { Valores manuales opcionales de respaldo si el sensor no reporta alguna medición. } @else { Ingresa las condiciones que conozcas para un diagnóstico más preciso. }</p>
-        <label>Temperatura (°C)<input type="number" step="0.1" [(ngModel)]="formularioDiagnostico.temperatura" name="temperatura"></label>
-        <label>Humedad del suelo (%)<input type="number" min="0" max="100" step="0.1" [(ngModel)]="formularioDiagnostico.humedad_suelo" name="humedadSuelo"></label>
+        <p class="muted form-grid-full">@if (formularioDiagnostico.origen_datos === 'SENSOR') { La temperatura y la humedad ambiental mostradas se actualizan desde la última lectura de tu canal de ThingSpeak. } @else { Ingresa las condiciones que conozcas para un diagnóstico más preciso. }</p>
+        <label>Temperatura (°C)<input type="number" step="0.1" [(ngModel)]="formularioDiagnostico.temperatura" name="temperatura" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
+        <label>Humedad ambiental (%)<input type="number" min="0" max="100" step="0.1" [(ngModel)]="formularioDiagnostico.humedad_ambiente" name="humedadAmbiente" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
         <label>pH del suelo<input type="number" min="0" max="14" step="0.1" [(ngModel)]="formularioDiagnostico.ph_suelo" name="phSuelo"></label>
         <label class="form-grid-full">Observaciones visuales
           <textarea rows="3" [(ngModel)]="formularioDiagnostico.observaciones_visuales" name="observaciones" placeholder="Ej.: hojas amarillas, tierra muy seca"></textarea>
@@ -60,7 +60,7 @@
           <button class="btn btn-primary" [disabled]="diagnosticoForm.invalid || diagnosticoCargando">{{ diagnosticoCargando ? 'Analizando…' : 'Generar diagnóstico' }}</button>
         </div>
       </form>
-      @if (mensajeDiagnostico) { <p class="error">{{ mensajeDiagnostico }}</p> }
+      @if (mensajeDiagnostico) { <p [class.error]="tipoMensajeDiagnostico === 'error'" [class.success]="tipoMensajeDiagnostico === 'success'">{{ mensajeDiagnostico }}</p> }
 
       @if (diagnosticoCultivo) {
         <article class="ia-result-card">
@@ -71,6 +71,7 @@
           <h4>Armado paso a paso</h4><ol>@for (paso of diagnosticoCultivo.receta_compost.instrucciones_armado; track paso) { <li>{{ paso }}</li> }</ol>
           <h4>Recomendaciones inmediatas</h4><ul>@for (recomendacion of diagnosticoCultivo.recomendaciones_inmediatas; track recomendacion) { <li>{{ recomendacion }}</li> }</ul>
           <p><strong>Alerta de plagas:</strong> {{ diagnosticoCultivo.alerta_plagas }}</p>
+          <div class="actions"><button type="button" class="btn btn-outline" (click)="descargarReporteDiagnostico()">Descargar reporte PDF</button></div>
         </article>
       }
     </section>

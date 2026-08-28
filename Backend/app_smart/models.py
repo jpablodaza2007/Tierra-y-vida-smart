@@ -75,12 +75,22 @@ class Alcaldia(models.Model):
         db_table = 'alcaldia'
 
 class InventarioAlcaldia(models.Model):
-    tipo_residuo = models.CharField(max_length=10, choices=INVENTARIO_TIPO_CHOICES, unique=True)
+    tipo_residuo = models.CharField(
+        max_length=10,
+        choices=[('SECO', 'Seco'), ('HUMEDO', 'Humedo')],
+    )
+    presencia_citricos = models.CharField(max_length=20, default='Ninguna')
     cantidad_total_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     class Meta:
         managed = True
         db_table = 'inventario_alcaldia'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tipo_residuo', 'presencia_citricos'],
+                name='inventario_tipo_citricos_unico',
+            ),
+        ]
 
 class GestionLogistica(models.Model):
     id_gestion = models.AutoField(primary_key=True)

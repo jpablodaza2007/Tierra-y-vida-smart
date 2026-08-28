@@ -92,7 +92,7 @@ export class PanelContribuyenteComponent implements OnInit {
     if (!this.formulario.lista_materiales?.trim()) {
       return 'Debes describir los materiales incluidos.';
     }
-    if (!this.formulario.presencia_citricos?.trim()) {
+    if (this.formulario.tipo_residuo === 'HUMEDO' && !this.formulario.presencia_citricos?.trim()) {
       return 'Debes indicar la presencia de citricos.';
     }
     if (!this.formulario.presencia_procesados) {
@@ -115,6 +115,16 @@ export class PanelContribuyenteComponent implements OnInit {
     this.mensajeError = '';
   }
 
+  alCambiarTipoResiduo(tipo: string): void {
+    this.formulario.tipo_residuo = tipo;
+    if (tipo === 'SECO') {
+      // Los cítricos solo clasifican los residuos húmedos.
+      this.formulario.presencia_citricos = 'Ninguna';
+    } else if (tipo !== 'HUMEDO') {
+      this.formulario.presencia_citricos = '';
+    }
+  }
+
   obtenerUbicacionActual(): void {
     if (!navigator.geolocation) {
       this.mensajeError = 'Tu navegador no admite geolocalización.';
@@ -122,9 +132,12 @@ export class PanelContribuyenteComponent implements OnInit {
     }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        this.formulario.latitud = coords.latitude;
-        this.formulario.longitud = coords.longitude;
-        this.formulario.ubicacion = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+        // El backend almacena coordenadas con seis decimales; el GPS puede entregar más.
+        const latitud = Number(coords.latitude.toFixed(6));
+        const longitud = Number(coords.longitude.toFixed(6));
+        this.formulario.latitud = latitud;
+        this.formulario.longitud = longitud;
+        this.formulario.ubicacion = `${latitud.toFixed(6)}, ${longitud.toFixed(6)}`;
         this.mensajeError = '';
         this.cdr.detectChanges();
       },
@@ -134,6 +147,9 @@ export class PanelContribuyenteComponent implements OnInit {
   }
 
   guardar(): void {
+    if (this.formulario.tipo_residuo === 'SECO') {
+      this.formulario.presencia_citricos = 'Ninguna';
+    }
     const error = this.validarResiduo();
     if (error) {
       this.mensajeError = error;

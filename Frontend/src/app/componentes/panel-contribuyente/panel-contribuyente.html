@@ -26,7 +26,7 @@
 
       <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
         <label>Tipo de residuo
-          <select [(ngModel)]="formulario.tipo_residuo" name="tipo" required>
+          <select [(ngModel)]="formulario.tipo_residuo" (ngModelChange)="alCambiarTipoResiduo($event)" name="tipo" required>
             <option value="">Selecciona un tipo</option>
             <option value="SECO">Residuo Seco</option>
             <option value="HUMEDO">Residuo Humedo</option>
@@ -62,15 +62,17 @@
           </select>
         </label>
 
-        <label>Presencia de citricos
-          <select [(ngModel)]="formulario.presencia_citricos" name="presencia_citricos" required>
-            <option value="">Selecciona cantidad</option>
-            <option value="Ninguna">Ninguna</option>
-            <option value="Baja">Baja</option>
-            <option value="Media">Media</option>
-            <option value="Alta">Alta</option>
-          </select>
-        </label>
+        @if (formulario.tipo_residuo === 'HUMEDO') {
+          <label>Presencia de citricos
+            <select [(ngModel)]="formulario.presencia_citricos" name="presencia_citricos" required>
+              <option value="">Selecciona cantidad</option>
+              <option value="Ninguna">Ninguna</option>
+              <option value="Baja">Baja</option>
+              <option value="Media">Media</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </label>
+        }
 
         <label>Presencia de plagas
           <select [(ngModel)]="formulario.presencia_plagas" name="presencia_plagas" required>
