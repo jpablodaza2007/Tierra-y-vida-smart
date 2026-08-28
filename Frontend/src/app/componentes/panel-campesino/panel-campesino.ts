@@ -39,13 +39,14 @@ export class PanelCampesinoComponent implements OnInit {
   diagnosticoCultivo: any = null;
   diagnosticoCargando = false;
   mensajeDiagnostico = '';
+  tipoMensajeDiagnostico: 'error' | 'success' = 'error';
   formularioDiagnostico = {
     tipo_cultivo: 'Papa',
     fase_cultivo: 'Crecimiento',
     area_cultivo_m2: null as number | null,
     origen_datos: 'SENSOR' as 'SENSOR' | 'MANUAL',
     temperatura: null as number | null,
-    humedad_suelo: null as number | null,
+    humedad_ambiente: null as number | null,
     ph_suelo: null as number | null,
     observaciones_visuales: '',
     latitud: null as number | null,
@@ -65,6 +66,7 @@ export class PanelCampesinoComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.obtenerUbicacionResiduo();
+    this.cargarLecturaThingSpeak();
   }
 
   cambiarSeccion(seccion: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo'): void {
@@ -143,9 +145,12 @@ export class PanelCampesinoComponent implements OnInit {
     }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        this.solicitudResiduo.latitud = coords.latitude;
-        this.solicitudResiduo.longitud = coords.longitude;
-        this.solicitudResiduo.ubicacion = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+        // El backend almacena coordenadas con seis decimales; el GPS puede entregar más.
+        const latitud = Number(coords.latitude.toFixed(6));
+        const longitud = Number(coords.longitude.toFixed(6));
+        this.solicitudResiduo.latitud = latitud;
+        this.solicitudResiduo.longitud = longitud;
+        this.solicitudResiduo.ubicacion = `${latitud.toFixed(6)}, ${longitud.toFixed(6)}`;
         this.mensajeError = '';
         this.cdr.detectChanges();
       },
@@ -157,34 +162,74 @@ export class PanelCampesinoComponent implements OnInit {
   obtenerUbicacionDiagnostico(): void {
     if (!navigator.geolocation) {
       this.mensajeDiagnostico = 'Tu navegador no admite geolocalización.';
+      this.tipoMensajeDiagnostico = 'error';
       this.cdr.detectChanges();
       return;
     }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        this.formularioDiagnostico.latitud = coords.latitude;
-        this.formularioDiagnostico.longitud = coords.longitude;
+        this.formularioDiagnostico.latitud = Number(coords.latitude.toFixed(6));
+        this.formularioDiagnostico.longitud = Number(coords.longitude.toFixed(6));
         this.mensajeDiagnostico = 'Ubicación GPS capturada correctamente.';
+        this.tipoMensajeDiagnostico = 'success';
         this.cdr.detectChanges();
       },
       () => {
         this.mensajeDiagnostico = 'No se pudo obtener la ubicación. Autoriza el permiso GPS e inténtalo de nuevo.';
+        this.tipoMensajeDiagnostico = 'error';
         this.cdr.detectChanges();
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
     );
   }
 
+  cambiarOrigenDiagnostico(origen: 'SENSOR' | 'MANUAL'): void {
+    if (origen === 'SENSOR') {
+      this.cargarLecturaThingSpeak();
+    }
+  }
+
+  cargarLecturaThingSpeak(): void {
+    if (this.formularioDiagnostico.origen_datos !== 'SENSOR') return;
+
+    this.crud.obtenerUltimaLecturaThingSpeak().subscribe({
+      next: (lectura) => {
+        this.formularioDiagnostico.temperatura = lectura.temperatura;
+        this.formularioDiagnostico.humedad_ambiente = lectura.humedad_ambiente;
+        this.mensajeDiagnostico = '';
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        this.formularioDiagnostico.temperatura = null;
+        this.formularioDiagnostico.humedad_ambiente = null;
+        this.mensajeDiagnostico = this.obtenerMensajeError(
+          error,
+          'No se pudo obtener la última medición de ThingSpeak.'
+        );
+        this.tipoMensajeDiagnostico = 'error';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   solicitarDiagnosticoCultivo(): void {
     if (!this.formularioDiagnostico.area_cultivo_m2 || this.formularioDiagnostico.area_cultivo_m2 <= 0) {
       this.mensajeDiagnostico = 'Ingresa un área de cultivo válida en m².';
+      this.tipoMensajeDiagnostico = 'error';
       return;
     }
     this.diagnosticoCargando = true;
     this.mensajeDiagnostico = '';
+    this.tipoMensajeDiagnostico = 'error';
     this.diagnosticoCultivo = null;
     // Red de seguridad de UI: ninguna solicitud puede dejar el botón bloqueado.
-    this.crud.diagnosticarCultivo(this.formularioDiagnostico).pipe(timeout(40000)).subscribe({
+    const datosDiagnostico = { ...this.formularioDiagnostico };
+    // La vista previa es informativa; el backend vuelve a leer ThingSpeak al analizar.
+    if (datosDiagnostico.origen_datos === 'SENSOR') {
+      datosDiagnostico.temperatura = null;
+      datosDiagnostico.humedad_ambiente = null;
+    }
+    this.crud.diagnosticarCultivo(datosDiagnostico).pipe(timeout(40000)).subscribe({
       next: (resultado) => {
         this.diagnosticoCultivo = resultado;
         this.diagnosticoCargando = false;
@@ -195,9 +240,114 @@ export class PanelCampesinoComponent implements OnInit {
         this.mensajeDiagnostico = error?.name === 'TimeoutError'
           ? 'El análisis tardó demasiado. Inténtalo de nuevo; el sistema usará el respaldo local si Gemini no responde.'
           : this.obtenerMensajeError(error, 'No se pudo generar el diagnóstico.');
+        this.tipoMensajeDiagnostico = 'error';
         this.cdr.detectChanges();
       },
     });
+  }
+
+  descargarReporteDiagnostico(): void {
+    if (!this.diagnosticoCultivo) return;
+
+    const receta = this.diagnosticoCultivo.receta_compost || {};
+    const lineas = [
+      'REPORTE DE DIAGNOSTICO AGRONOMICO',
+      `Generado: ${new Date().toLocaleString('es-CO')}`,
+      '',
+      `Cultivo: ${this.formularioDiagnostico.tipo_cultivo}`,
+      `Fase: ${this.formularioDiagnostico.fase_cultivo}`,
+      `Area sembrada: ${this.formularioDiagnostico.area_cultivo_m2 ?? 'No especificada'} m2`,
+      `Fuente del analisis: ${this.diagnosticoCultivo.fuente_diagnostico === 'GEMINI' ? 'Gemini IA' : 'Motor local'}`,
+      '',
+      `Estado del cultivo: ${this.diagnosticoCultivo.estado_salud_cultivo || 'No disponible'}`,
+      'Diagnostico general:',
+      this.diagnosticoCultivo.diagnostico_general || 'No disponible',
+      '',
+      `RECETA DE COMPOST (${receta.total_compost_requerido_kg ?? 0} kg)`,
+      `Material verde: ${receta.kg_material_verde ?? 0} kg (40%)`,
+      `Material cafe: ${receta.kg_material_cafe ?? 0} kg (60%)`,
+      '',
+      'ARMADO PASO A PASO:',
+      ...(receta.instrucciones_armado || []).map((paso: string, indice: number) => `${indice + 1}. ${paso}`),
+      '',
+      'RECOMENDACIONES INMEDIATAS:',
+      ...(this.diagnosticoCultivo.recomendaciones_inmediatas || []).map((recomendacion: string) => `- ${recomendacion}`),
+      '',
+      `Alerta de plagas: ${this.diagnosticoCultivo.alerta_plagas || 'NINGUNA'}`,
+    ];
+
+    const pdf = this.crearPdf(lineas);
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+    enlace.download = `reporte-agronomico-${this.fechaParaArchivo()}.pdf`;
+    enlace.click();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 0);
+  }
+
+  private crearPdf(lineas: string[]): string {
+    const anchoMaximo = 88;
+    const lineasAjustadas = lineas.flatMap((linea) => this.ajustarLineaPdf(linea, anchoMaximo));
+    const lineasPorPagina = 57;
+    const paginas = Array.from(
+      { length: Math.max(1, Math.ceil(lineasAjustadas.length / lineasPorPagina)) },
+      (_, indice) => lineasAjustadas.slice(indice * lineasPorPagina, (indice + 1) * lineasPorPagina),
+    );
+    const objetos: string[] = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      `<< /Type /Pages /Kids [${paginas.map((_, indice) => `${3 + indice * 2} 0 R`).join(' ')}] /Count ${paginas.length} >>`,
+    ];
+    const idFuente = 3 + paginas.length * 2;
+
+    paginas.forEach((pagina, indice) => {
+      const idPagina = 3 + indice * 2;
+      const idContenido = idPagina + 1;
+      const contenido = `BT\n/F1 10 Tf\n50 790 Td\n13 TL\n${pagina.map((linea) => `(${this.escaparTextoPdf(linea)}) Tj\nT*`).join('\n')}\nET`;
+      objetos[idPagina - 1] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${idFuente} 0 R >> >> /Contents ${idContenido} 0 R >>`;
+      objetos[idContenido - 1] = `<< /Length ${contenido.length} >>\nstream\n${contenido}\nendstream`;
+    });
+    objetos[idFuente - 1] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+
+    let pdf = '%PDF-1.4\n%PDF generated by Tierra y Vida Smart\n';
+    const posiciones: number[] = [0];
+    objetos.forEach((objeto, indice) => {
+      posiciones.push(pdf.length);
+      pdf += `${indice + 1} 0 obj\n${objeto}\nendobj\n`;
+    });
+    const inicioXref = pdf.length;
+    pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
+    posiciones.slice(1).forEach((posicion) => { pdf += `${String(posicion).padStart(10, '0')} 00000 n \n`; });
+    pdf += `trailer\n<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${inicioXref}\n%%EOF`;
+    return pdf;
+  }
+
+  private ajustarLineaPdf(linea: string, anchoMaximo: number): string[] {
+    if (!linea) return [''];
+    const palabras = this.normalizarTextoPdf(linea).split(/\s+/);
+    const resultado: string[] = [];
+    let actual = '';
+    palabras.forEach((palabra) => {
+      const candidata = actual ? `${actual} ${palabra}` : palabra;
+      if (candidata.length > anchoMaximo && actual) {
+        resultado.push(actual);
+        actual = palabra;
+      } else {
+        actual = candidata;
+      }
+    });
+    if (actual) resultado.push(actual);
+    return resultado;
+  }
+
+  private normalizarTextoPdf(texto: string): string {
+    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
+  }
+
+  private escaparTextoPdf(texto: string): string {
+    return texto.replace(/([\\()])/g, '\\$1');
+  }
+
+  private fechaParaArchivo(): string {
+    return new Date().toISOString().slice(0, 10);
   }
 
   puedeVincular(solicitud: any): boolean {

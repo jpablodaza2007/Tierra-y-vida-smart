@@ -35,6 +35,7 @@ from .views import (
     VincularSensorView,
     TelemetriaIoTView,
     DiagnosticoCultivoView,
+    UltimaLecturaThingSpeakView,
 )
 
 router = DefaultRouter()
@@ -78,5 +79,6 @@ urlpatterns = [
     path('inventario-alcaldia/', InventarioAlcaldiaView.as_view(), name='inventario_alcaldia'),
     path('iot/telemetria/', TelemetriaIoTView.as_view(), name='iot_telemetria'),
     path('iot/simular-lectura/', SimularLecturaIoTView.as_view(), name='iot_simular_lectura'),
+    path('iot/ultima-lectura-thingspeak/', UltimaLecturaThingSpeakView.as_view(), name='iot_ultima_lectura_thingspeak'),
     path('ia-diagnostico-cultivo/', DiagnosticoCultivoView.as_view(), name='ia_diagnostico_cultivo'),
 ] + router.urls

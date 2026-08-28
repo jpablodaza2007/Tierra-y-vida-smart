@@ -39,6 +39,7 @@ from .models import (
     Usuario,
 )
 from .services.ia_agronoma import diagnosticar_cultivo
+from .services.thingspeak import obtener_ultima_lectura_thingspeak
 from .serializers import (
     GestionLogisticaSerializer,
     LoginSerializer,
@@ -61,11 +62,23 @@ class DiagnosticoCultivoSerializer(serializers.Serializer):
     area_cultivo_m2 = serializers.FloatField(min_value=0.01)
     origen_datos = serializers.ChoiceField(choices=['SENSOR', 'MANUAL'])
     temperatura = serializers.FloatField(required=False, allow_null=True)
+    humedad_ambiente = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
     humedad_suelo = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
     ph_suelo = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=14)
     observaciones_visuales = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     latitud = serializers.FloatField(required=False, allow_null=True, min_value=-90, max_value=90)
     longitud = serializers.FloatField(required=False, allow_null=True, min_value=-180, max_value=180)
+
+    def validate(self, attrs):
+        if attrs.get('origen_datos') == 'SENSOR':
+            campos_manuales = ('temperatura', 'humedad_ambiente')
+            enviados = [campo for campo in campos_manuales if attrs.get(campo) is not None]
+            if enviados:
+                raise serializers.ValidationError({
+                    campo: 'Solo puede ingresarse manualmente al seleccionar "Ingreso manual de condiciones".'
+                    for campo in enviados
+                })
+        return attrs
 
 
 class DiagnosticoCultivoView(APIView):
@@ -84,6 +97,10 @@ class DiagnosticoCultivoView(APIView):
         # SENSOR toma la última lectura de un dispositivo vinculado. Los campos
         # ausentes en telemetría conservan el valor manual para no perder datos.
         if datos['origen_datos'] == 'SENSOR':
+            lectura_thingspeak = obtener_ultima_lectura_thingspeak()
+            if lectura_thingspeak is not None:
+                datos.update(lectura_thingspeak)
+
             lectura = (
                 LecturaSensor.objects.filter(
                     dispositivo__campesino=perfil,
@@ -93,14 +110,40 @@ class DiagnosticoCultivoView(APIView):
                 .first()
             )
             if lectura is not None:
-                datos['temperatura'] = lectura.temperatura_ambiente if lectura.temperatura_ambiente is not None else datos.get('temperatura')
-                datos['humedad_suelo'] = lectura.humedad_suelo_porcentaje if lectura.humedad_suelo_porcentaje is not None else datos.get('humedad_suelo')
+                if datos.get('temperatura') is None:
+                    datos['temperatura'] = lectura.temperatura_ambiente
+                if datos.get('humedad_ambiente') is None:
+                    datos['humedad_ambiente'] = lectura.humedad_ambiente
+                if datos.get('humedad_suelo') is None:
+                    datos['humedad_suelo'] = lectura.humedad_suelo_porcentaje
                 datos['ph_suelo'] = lectura.ph_suelo if lectura.ph_suelo is not None else datos.get('ph_suelo')
 
         resultado, fuente = diagnosticar_cultivo(datos)
         # Transparencia: el cliente puede indicar si recibió IA externa o respaldo seguro.
         resultado['fuente_diagnostico'] = fuente
         return Response(resultado, status=status.HTTP_200_OK)
+
+
+class UltimaLecturaThingSpeakView(APIView):
+    """Expone la última medición del canal para mostrarla en el formulario."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response(
+                {'error': 'Solo los campesinos pueden consultar las mediciones de sus sensores.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        lectura = obtener_ultima_lectura_thingspeak()
+        if lectura is None:
+            return Response(
+                {'error': 'No hay una lectura disponible en ThingSpeak. Verifica la configuración y que el sensor haya publicado datos.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(lectura, status=status.HTTP_200_OK)
 
 
 class TelemetriaIoTView(APIView):
@@ -186,6 +229,54 @@ def decimal_positivo(valor, nombre_campo):
     if numero <= 0:
         raise serializers.ValidationError({nombre_campo: ['Debe ser mayor que cero.']})
     return numero
+
+
+def categoria_citricos(tipo_residuo, presencia_citricos=None):
+    """Normaliza la categoría usada para clasificar el inventario húmedo."""
+    if tipo_residuo != 'HUMEDO':
+        return 'Ninguna'
+    categorias = {
+        'ninguna': 'Ninguna',
+        'ninguno': 'Ninguna',
+        'baja': 'Baja',
+        'bajo': 'Baja',
+        'media': 'Media',
+        'medio': 'Media',
+        'alta': 'Alta',
+        'alto': 'Alta',
+    }
+    return categorias.get(str(presencia_citricos or '').strip().lower(), 'Ninguna')
+
+
+def agregar_al_inventario(residuo):
+    categoria = categoria_citricos(residuo.tipo_residuo, residuo.presencia_citricos)
+    inventario, _ = InventarioAlcaldia.objects.select_for_update().get_or_create(
+        tipo_residuo=residuo.tipo_residuo,
+        presencia_citricos=categoria,
+    )
+    inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) + Decimal(str(residuo.cantidad_kg))
+    inventario.save(update_fields=['cantidad_total_kg'])
+
+
+def descontar_del_inventario(tipo_residuo, cantidad):
+    cantidad_pendiente = Decimal(str(cantidad))
+    inventarios = list(
+        InventarioAlcaldia.objects.select_for_update()
+        .filter(tipo_residuo=tipo_residuo, cantidad_total_kg__gt=0)
+        .order_by('presencia_citricos', 'id_inventario')
+    )
+    disponible = sum((Decimal(str(item.cantidad_total_kg)) for item in inventarios), Decimal('0'))
+    if disponible < cantidad_pendiente:
+        raise serializers.ValidationError({'non_field_errors': ['Inventario insuficiente en la alcaldía para realizar esta asignación.']})
+
+    for inventario in inventarios:
+        si_disponible = Decimal(str(inventario.cantidad_total_kg))
+        a_descontar = min(si_disponible, cantidad_pendiente)
+        inventario.cantidad_total_kg = si_disponible - a_descontar
+        inventario.save(update_fields=['cantidad_total_kg'])
+        cantidad_pendiente -= a_descontar
+        if cantidad_pendiente == 0:
+            break
 
 
 def obtener_perfil(user):
@@ -1301,9 +1392,7 @@ def decidir_residuo_alcaldia(request, id_residuo):
             residuo.save(update_fields=['estado', 'motivo_rechazo', 'contraoferta_alcaldia'])
 
             if estado_nuevo == 'APROBADO':
-                inventario, _ = InventarioAlcaldia.objects.select_for_update().get_or_create(tipo_residuo=residuo.tipo_residuo)
-                inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) + Decimal(str(residuo.cantidad_kg))
-                inventario.save(update_fields=['cantidad_total_kg'])
+                agregar_al_inventario(residuo)
 
     except ResiduoOrganico.DoesNotExist:
         return Response({'error': 'No se encontro el residuo solicitado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1407,9 +1496,7 @@ class RespuestaContraofertaResiduoView(APIView):
                 residuo.save(update_fields=['estado'])
 
                 if estado_nuevo == 'ACEPTADO_POR_CONTRIBUYENTE':
-                    inventario, _ = InventarioAlcaldia.objects.select_for_update().get_or_create(tipo_residuo=residuo.tipo_residuo)
-                    inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) + Decimal(str(residuo.cantidad_kg))
-                    inventario.save(update_fields=['cantidad_total_kg'])
+                    agregar_al_inventario(residuo)
 
         except ResiduoOrganico.DoesNotExist:
             return Response({'error': 'No se encontro el residuo solicitado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1545,7 +1632,6 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
                 'ubicacion_entrega': ['La ubicación de entrega es obligatoria y debe venir del campesino seleccionado.']
             })
 
-        inventario = InventarioAlcaldia.objects.filter(tipo_residuo=tipo_residuo).first()
         cantidad_a_restar = Decimal(str(cantidad_kg))
         solicitud_id = self.request.data.get('solicitud_id') or self.request.data.get('id_solicitud_residuo')
 
@@ -1555,16 +1641,12 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
             except (TypeError, ValueError):
                 raise serializers.ValidationError({'solicitud_id': ['El ID de la solicitud de residuo no es válido.']})
 
-        if inventario is None or Decimal(str(inventario.cantidad_total_kg)) < cantidad_a_restar:
-            raise serializers.ValidationError({'non_field_errors': ['Inventario insuficiente en la alcaldía para realizar esta asignación.']})
-
         with transaction.atomic():
+            descontar_del_inventario(tipo_residuo, cantidad_a_restar)
             serializer.save(
                 id_usuario_alcaldia=perfil,
                 ubicacion_entrega=ubicacion_entrega,
             )
-            inventario.cantidad_total_kg = Decimal(str(inventario.cantidad_total_kg)) - cantidad_a_restar
-            inventario.save(update_fields=['cantidad_total_kg'])
 
             if solicitud_id:
                 solicitud = (
@@ -1609,6 +1691,7 @@ class GestionDetailView(RolQuerysetMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = GestionLogisticaSerializer
     rol_requerido = 'alcaldia'
     lookup_field = 'id_gestion'
+    http_method_names = ['get', 'head', 'options']
 
     def get_queryset(self):
         self.perfil_actual()
@@ -1739,5 +1822,9 @@ class InventarioAlcaldiaView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        inventarios = InventarioAlcaldia.objects.all().values('tipo_residuo', 'cantidad_total_kg')
+        inventarios = InventarioAlcaldia.objects.all().values(
+            'tipo_residuo',
+            'presencia_citricos',
+            'cantidad_total_kg',
+        ).order_by('tipo_residuo', 'presencia_citricos')
         return Response(list(inventarios), status=status.HTTP_200_OK)

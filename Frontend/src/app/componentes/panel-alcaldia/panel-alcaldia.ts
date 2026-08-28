@@ -20,8 +20,8 @@ export class PanelAlcaldiaComponent implements OnInit {
   campesinos: any[] = [];
   solicitudesResiduo: any[] = [];
   residuosAuditoria: any[] = [];
-  contraofertasResiduo: Record<number, number | null> = {};
-  contraofertasSolicitudResiduo: Record<number, number | null> = {};
+  contraofertasResiduo: Record<number, string> = {};
+  contraofertasSolicitudResiduo: Record<number, string> = {};
   diagnosticoSeleccionado: any = null;
   editandoId: number | null = null;
   mensajeError = '';
@@ -192,8 +192,8 @@ export class PanelAlcaldiaComponent implements OnInit {
   }
 
   hacerContraofertaResiduo(residuo: any): void {
-    const valor = this.contraofertasResiduo[residuo.id_residuo];
-    if (valor == null || Number(valor) <= 0) {
+    const valor = this.convertirMonedaANumero(this.contraofertasResiduo[residuo.id_residuo]);
+    if (valor == null || valor <= 0) {
       this.mensajeError = 'Ingresa una contraoferta valida para el residuo.';
       this.mensajeExito = '';
       return;
@@ -201,7 +201,7 @@ export class PanelAlcaldiaComponent implements OnInit {
 
     this.crud.decidirResiduoAuditoria(residuo.id_residuo, {
       estado: 'CONTRAOFERTA_ALCALDIA',
-      contraoferta_alcaldia: Number(valor),
+      contraoferta_alcaldia: valor,
     }).subscribe({
       next: () => {
         this.mensajeError = '';
@@ -231,8 +231,8 @@ export class PanelAlcaldiaComponent implements OnInit {
   }
 
   hacerContraofertaSolicitudResiduo(solicitud: any): void {
-    const valor = this.contraofertasSolicitudResiduo[solicitud.id_solicitud_residuo];
-    if (valor == null || Number(valor) <= 0) {
+    const valor = this.convertirMonedaANumero(this.contraofertasSolicitudResiduo[solicitud.id_solicitud_residuo]);
+    if (valor == null || valor <= 0) {
       this.mensajeError = 'Ingresa una contraoferta valida para la solicitud.';
       this.mensajeExito = '';
       return;
@@ -240,7 +240,7 @@ export class PanelAlcaldiaComponent implements OnInit {
 
     this.crud.decidirSolicitudResiduoAuditoria(solicitud.id_solicitud_residuo, {
       estado: 'CONTRAOFERTA_ALCALDIA',
-      contraoferta_alcaldia: Number(valor),
+      contraoferta_alcaldia: valor,
     }).subscribe({
       next: () => {
         this.mensajeError = '';
@@ -414,5 +414,47 @@ export class PanelAlcaldiaComponent implements OnInit {
     if (Array.isArray(valor)) return valor[0];
     if (typeof valor === 'string') return valor;
     return '';
+  }
+
+  actualizarContraoferta(tipo: 'residuo' | 'solicitud', id: number, valor: string): void {
+    const destino = tipo === 'residuo' ? this.contraofertasResiduo : this.contraofertasSolicitudResiduo;
+    destino[id] = valor;
+  }
+
+  editarContraoferta(tipo: 'residuo' | 'solicitud', id: number): void {
+    const destino = tipo === 'residuo' ? this.contraofertasResiduo : this.contraofertasSolicitudResiduo;
+    const valor = this.convertirMonedaANumero(destino[id]);
+    destino[id] = valor == null ? '' : String(valor);
+  }
+
+  formatearContraoferta(tipo: 'residuo' | 'solicitud', id: number): void {
+    const destino = tipo === 'residuo' ? this.contraofertasResiduo : this.contraofertasSolicitudResiduo;
+    const valor = this.convertirMonedaANumero(destino[id]);
+    destino[id] = valor == null ? '' : this.formatearMoneda(valor);
+  }
+
+  private formatearMoneda(valor: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(valor);
+  }
+
+  private convertirMonedaANumero(valor: string | undefined): number | null {
+    const texto = (valor || '').replace(/[^0-9,.-]/g, '');
+    if (!texto || !/\d/.test(texto)) return null;
+
+    const ultimoPunto = texto.lastIndexOf('.');
+    const ultimaComa = texto.lastIndexOf(',');
+    const indiceDecimal = Math.max(ultimoPunto, ultimaComa);
+    const decimales = indiceDecimal >= 0 ? texto.length - indiceDecimal - 1 : 0;
+    const tieneDecimal = indiceDecimal >= 0 && decimales > 0 && decimales <= 2;
+    const normalizado = tieneDecimal
+      ? `${texto.slice(0, indiceDecimal).replace(/[^0-9]/g, '')}.${texto.slice(indiceDecimal + 1).replace(/[^0-9]/g, '')}`
+      : texto.replace(/[^0-9]/g, '');
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : null;
   }
 }

@@ -1,9 +1,4 @@
 """Diagnóstico agronómico con Gemini y un motor local de respaldo.
-
-La API key se crea gratis en https://aistudio.google.com/app/apikey y se guarda
-en ``Backend/.env`` como ``GEMINI_API_KEY=...``. Nunca se expone al navegador.
-Si Gemini no está instalado, configurado o disponible, este módulo devuelve el
-diagnóstico de reglas locales para que el flujo del campesino no se interrumpa.
 """
 
 from __future__ import annotations
@@ -54,7 +49,10 @@ def calcular_receta_compost(tipo_cultivo: str, fase_cultivo: str, area_m2: float
 def generar_diagnostico(datos: dict) -> dict:
     """Fallback explicable basado en reglas agronómicas básicas locales."""
     cultivo, fase = datos['tipo_cultivo'].strip(), datos['fase_cultivo'].strip()
-    temperatura, humedad, ph = datos.get('temperatura'), datos.get('humedad_suelo'), datos.get('ph_suelo')
+    temperatura = datos.get('temperatura')
+    humedad_suelo = datos.get('humedad_suelo')
+    humedad_ambiente = datos.get('humedad_ambiente')
+    ph = datos.get('ph_suelo')
     observaciones = (datos.get('observaciones_visuales') or '').lower()
     severidad, alertas, recomendaciones, plagas = 0, [], [], []
     min_temp, max_temp = RANGOS_TEMPERATURA.get(cultivo.lower(), (18, 28))
@@ -63,12 +61,12 @@ def generar_diagnostico(datos: dict) -> dict:
             severidad = 2; alertas.append('La temperatura está fuera del rango tolerable.'); recomendaciones.append('Protege el cultivo con cobertura, sombra temporal o riego en horas frescas.')
         elif temperatura < min_temp or temperatura > max_temp:
             severidad = max(severidad, 1); alertas.append('La temperatura requiere seguimiento.')
-    if humedad is not None:
-        if humedad < 30:
+    if humedad_suelo is not None:
+        if humedad_suelo < 30:
             severidad = 2; alertas.append('El suelo presenta déficit hídrico crítico.'); recomendaciones.append('Riega gradualmente hoy y añade cobertura orgánica.')
-        elif humedad < 50:
+        elif humedad_suelo < 50:
             severidad = max(severidad, 1); alertas.append('La humedad del suelo es baja.'); recomendaciones.append('Aumenta el riego aproximadamente 20 %, evitando escorrentía.')
-        elif humedad > 85:
+        elif humedad_suelo > 85:
             severidad = max(severidad, 1); alertas.append('La humedad del suelo es excesiva.'); recomendaciones.append('Reduce el riego y revisa el drenaje.'); plagas.append('La humedad alta puede favorecer hongos radiculares y manchas foliares.')
     if ph is not None:
         if ph < 5.2 or ph > 7.5:
@@ -84,7 +82,7 @@ def generar_diagnostico(datos: dict) -> dict:
     if not recomendaciones:
         recomendaciones.append('Mantén riego, cobertura del suelo y monitoreo semanal de las condiciones del cultivo.')
     recomendaciones.append('Incorpora el compost maduro alrededor de la planta sin tocar el tallo.')
-    valores = ', '.join(x for x in [f'temperatura {temperatura:.1f} °C' if temperatura is not None else '', f'humedad {humedad:.1f} %' if humedad is not None else '', f'pH {ph:.1f}' if ph is not None else ''] if x) or 'sin mediciones numéricas'
+    valores = ', '.join(x for x in [f'temperatura {temperatura:.1f} °C' if temperatura is not None else '', f'humedad ambiental {humedad_ambiente:.1f} %' if humedad_ambiente is not None else '', f'humedad del suelo {humedad_suelo:.1f} %' if humedad_suelo is not None else '', f'pH {ph:.1f}' if ph is not None else ''] if x) or 'sin mediciones numéricas'
     return {
         'estado_salud_cultivo': ('Excelente', 'Atención Requerida', 'Crítico')[severidad],
         'diagnostico_general': f'Para {cultivo} en fase de {fase}: {valores}. ' + (' '.join(alertas) if alertas else 'Las condiciones evaluadas son favorables.'),
