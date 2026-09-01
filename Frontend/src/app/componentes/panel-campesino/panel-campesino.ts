@@ -16,10 +16,7 @@ import { timeout } from 'rxjs';
 })
 export class PanelCampesinoComponent implements OnInit {
   usuario;
-  sensores: any[] = [];
   residuosDisponibles: any[] = [];
-  editandoId: number | null = null;
-  tipoSensor = '';
   readonly tiposSensoresDisponibles = ['Temperatura', 'pH', 'Humedad'];
   mensajeError = '';
   mensajeExito = '';
@@ -77,14 +74,6 @@ export class PanelCampesinoComponent implements OnInit {
   }
 
   cargar(): void {
-    this.crud.listarSensores().subscribe({
-      next: (datos) => {
-        this.sensores = datos;
-        this.cdr.detectChanges();
-      },
-      error: () => this.mensajeError = 'No se pudieron cargar los sensores.'
-    });
-
     this.crud.listarResiduosDisponibles().subscribe({
       next: (datos) => {
         this.residuosDisponibles = datos;
@@ -116,26 +105,6 @@ export class PanelCampesinoComponent implements OnInit {
       },
       error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudieron cargar las solicitudes de residuos.')
     });
-  }
-
-  guardar(): void {
-    const datos = { tipo_sensor: this.tipoSensor };
-    const peticion = this.editandoId
-      ? this.crud.actualizarSensor(this.editandoId, datos)
-      : this.crud.crearSensor(datos);
-
-    peticion.subscribe({
-      next: () => {
-        this.cancelar();
-        this.seccionActual = 'sensores';
-        this.cargar();
-      },
-      error: () => this.mensajeError = 'No se pudo guardar el sensor.'
-    });
-  }
-
-  mostrarFormularioSensor(): boolean {
-    return this.editandoId !== null;
   }
 
   obtenerUbicacionResiduo(): void {
@@ -350,19 +319,6 @@ export class PanelCampesinoComponent implements OnInit {
     return new Date().toISOString().slice(0, 10);
   }
 
-  puedeVincular(solicitud: any): boolean {
-    if (solicitud.estado === 'ENTREGADO') return true;
-    return ['ACEPTADO', 'EN_CAMINO'].includes(solicitud.estado)
-      && solicitud.fecha_entrega_deseada <= this.obtenerFechaLocalActual();
-  }
-
-  vincularSensor(solicitud: any): void {
-    this.crud.vincularSensor(solicitud.id_solicitud_sensor).subscribe({
-      next: () => { this.mensajeExito = 'Sensor vinculado correctamente. Ya está activo en el monitoreo.'; this.cargar(); },
-      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo vincular el sensor.'),
-    });
-  }
-
   alternarSensorSolicitud(tipoSensor: string, seleccionado: boolean): void {
     const sensores = new Set(this.solicitud.tipo_sensores);
     if (seleccionado) {
@@ -479,26 +435,6 @@ export class PanelCampesinoComponent implements OnInit {
       },
       error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo responder la contraoferta.')
     });
-  }
-
-  editar(sensor: any): void {
-    this.editandoId = sensor.id_sensor;
-    this.tipoSensor = sensor.tipo_sensor;
-  }
-
-  eliminar(id: number): void {
-    if (!confirm('¿Deseas eliminar este sensor?')) return;
-    this.crud.eliminarSensor(id).subscribe({
-      next: () => this.cargar(),
-      error: () => this.mensajeError = 'No se pudo eliminar el sensor.'
-    });
-  }
-
-  cancelar(): void {
-    this.editandoId = null;
-    this.tipoSensor = '';
-    this.mensajeError = '';
-    this.mensajeExito = '';
   }
 
   private obtenerFechaLocalActual(): string {
