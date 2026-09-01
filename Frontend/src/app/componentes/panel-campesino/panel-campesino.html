@@ -7,7 +7,6 @@
     <div class="navbar-actions">
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-residuos">Solicitar Residuos</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-sensores">Solicitar Sensores</a>
-      <a class="nav-section-link" [routerLink]="[]" fragment="mis-sensores">Mis Sensores</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="ia-agronoma">IA Agrónoma</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="material-aprendizaje">Material de Aprendizaje</a>
       <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesión</button>
@@ -240,19 +239,18 @@
 
       <div class="subsection">
         <h3>Historial de solicitudes de sensores</h3>
-        @for (solicitudSensor of solicitudesSensor; track solicitudSensor.id_solicitud_sensor) {
-          @if (solicitudSensor.estado === 'ACEPTADO' || solicitudSensor.estado === 'EN_CAMINO' || solicitudSensor.estado === 'ENTREGADO') {
+        <div class="card-grid">
+          @for (solicitudSensor of solicitudesSensor; track solicitudSensor.id_solicitud_sensor) {
             <article class="item-card">
+              <span class="eyebrow">Solicitud reciente</span>
               <h3>{{ solicitudSensor.tipo_sensor }}</h3>
-              @if (puedeVincular(solicitudSensor)) {
-                <p>Tu sensor está disponible para activar el monitoreo.</p>
-                <button type="button" class="btn btn-primary" (click)="vincularSensor(solicitudSensor)">Conectar / Vincular sensor</button>
-              } @else {
-                <p>Tu sensor llegará el {{ solicitudSensor.fecha_entrega_deseada }}.</p>
-              }
+              <p>Fecha solicitada de recepción: {{ solicitudSensor.fecha_entrega_deseada }}.</p>
+              <p>Estado: {{ solicitudSensor.estado }}</p>
             </article>
+          } @empty {
+            <p class="empty empty-card">Aún no tienes solicitudes de sensores.</p>
           }
-        }
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -288,44 +286,6 @@
       </div>
     </section>
 
-    <section id="mis-sensores" class="panel-section">
-      <div class="section-heading">
-        <span class="eyebrow">Monitoreo actual</span>
-        <h2>Mis sensores</h2>
-        <p>Consulta y administra los sensores vinculados a tu operación agrícola.</p>
-      </div>
-
-      @if (mostrarFormularioSensor()) {
-        <form class="form-grid sensor-edit-form" #form="ngForm" (ngSubmit)="guardar()">
-          <label>Tipo de sensor
-            <input [value]="tipoSensor" name="tipoSensor" readonly>
-          </label>
-
-          <div class="actions">
-            <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
-            @if (editandoId) {
-              <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
-            }
-          </div>
-        </form>
-      }
-
-      @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-
-      <div class="card-grid">
-        @for (sensor of sensores; track sensor.id_sensor) {
-          <article class="item-card">
-            <span class="eyebrow">Sensor #{{ sensor.id_sensor }}</span>
-            <h3>{{ sensor.tipo_sensor }}</h3>
-            <div class="actions">
-              <button type="button" class="btn btn-small" (click)="editar(sensor)">Editar</button>
-            </div>
-          </article>
-        } @empty {
-          <p class="empty empty-card">Aún no tienes sensores registrados. Cuando el administrador apruebe tu solicitud, podrás administrarlos aquí.</p>
-        }
-      </div>
-    </section>
     <section id="material-aprendizaje" class="panel-section learning-section">
       <div class="section-heading">
         <span class="eyebrow">Guia practica</span>
