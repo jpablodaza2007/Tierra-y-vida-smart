@@ -2,6 +2,9 @@
   <nav class="admin-navbar">
     <div class="navbar-brand">Tierra y Vida <span>Smart</span></div>
     <div class="navbar-actions">
+      <a class="nav-link" routerLink="/admin/contribuyentes" routerLinkActive="active">Contribuyentes</a>
+      <a class="nav-link" routerLink="/admin/alcaldias" routerLinkActive="active">Alcaldías</a>
+      <a class="nav-link" routerLink="/admin/sensores" routerLinkActive="active">Sensores</a>
       <button type="button" class="btn-nav" (click)="auth.cerrarSesion()">Cerrar Sesion</button>
     </div>
   </nav>
@@ -162,3 +165,4 @@
     </section>
   </section>
 </main>
+<app-site-footer />

@@ -9,11 +9,54 @@ from .models import (
     GestionLogistica,
     ResiduoOrganico,
     Sensor,
+    LecturaSensor,
     SolicitudResiduo,
     SolicitudSensor,
     Usuario,
     TIPO_RESIDUO_CHOICES,
 )
+
+
+class LecturaSensorSerializer(serializers.ModelSerializer):
+    """Valida el contenido de una lectura sin permitir elegir su dispositivo."""
+
+    class Meta:
+        model = LecturaSensor
+        fields = [
+            'id_lectura',
+            'temperatura_ambiente',
+            'humedad_ambiente',
+            'humedad_suelo_porcentaje',
+            'ph_suelo',
+            'timestamp',
+        ]
+        read_only_fields = ['id_lectura', 'timestamp']
+
+    def validate(self, attrs):
+        campos = (
+            'temperatura_ambiente',
+            'humedad_ambiente',
+            'humedad_suelo_porcentaje',
+            'ph_suelo',
+        )
+        if not any(campo in attrs and attrs[campo] is not None for campo in campos):
+            raise serializers.ValidationError('Debe enviar al menos una medición telemétrica.')
+        return attrs
+
+    def validate_humedad_ambiente(self, value):
+        if value is not None and not 0 <= value <= 100:
+            raise serializers.ValidationError('La humedad ambiente debe estar entre 0 y 100%.')
+        return value
+
+    def validate_humedad_suelo_porcentaje(self, value):
+        if value is not None and not 0 <= value <= 100:
+            raise serializers.ValidationError('La humedad del suelo debe estar entre 0 y 100%.')
+        return value
+
+    def validate_ph_suelo(self, value):
+        if value is not None and not 0 <= value <= 14:
+            raise serializers.ValidationError('El pH del suelo debe estar entre 0 y 14.')
+        return value
 
 class RegistroSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.CharField(write_only=True)
@@ -84,6 +127,8 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             'precio_sugerido_contribuyente',
             'contraoferta_alcaldia',
             'ubicacion',
+            'latitud',
+            'longitud',
             'estado',
             'dias_almacenamiento',
             'metodo_conservacion',
@@ -101,7 +146,8 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             'tipo_residuo': {'required': True, 'allow_blank': False},
             'cantidad_kg': {'required': True},
             'precio_sugerido_contribuyente': {'required': True},
-            'ubicacion': {'required': True, 'allow_blank': False},
+            'latitud': {'required': True},
+            'longitud': {'required': True},
             'dias_almacenamiento': {'required': True},
             'metodo_conservacion': {'required': True, 'allow_blank': False},
             'lista_materiales': {'required': True, 'allow_blank': False},
@@ -150,6 +196,16 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Los dias de almacenamiento no pueden ser negativos.')
         return value
 
+    def validate_latitud(self, value):
+        if value is None or not -90 <= value <= 90:
+            raise serializers.ValidationError('La latitud GPS no es válida.')
+        return value
+
+    def validate_longitud(self, value):
+        if value is None or not -180 <= value <= 180:
+            raise serializers.ValidationError('La longitud GPS no es válida.')
+        return value
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if not attrs.get('presencia_procesados'):
@@ -160,14 +216,16 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ausencia_origen_animal': 'Debes confirmar que el residuo esta libre de carnes, lacteos o grasas.'
             })
+        if attrs.get('latitud') is not None and attrs.get('longitud') is not None:
+            attrs['ubicacion'] = f"Lat: {attrs['latitud']}, Lon: {attrs['longitud']}"
         return attrs
 
 
 class SensorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sensor
-        fields = ['id_sensor', 'tipo_sensor']
-        read_only_fields = ['id_sensor']
+        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
+        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
 
 
 class RegistroAdminSerializer(serializers.ModelSerializer):

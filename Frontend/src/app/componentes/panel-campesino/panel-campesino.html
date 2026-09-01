@@ -7,7 +7,7 @@
     <div class="navbar-actions">
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-residuos">Solicitar Residuos</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-sensores">Solicitar Sensores</a>
-      <a class="nav-section-link" [routerLink]="[]" fragment="mis-sensores">Mis Sensores</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="ia-agronoma">IA Agrónoma</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="material-aprendizaje">Material de Aprendizaje</a>
       <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesión</button>
     </div>
@@ -17,6 +17,63 @@
     <header class="page-greeting">
       <h1>¡Hola, {{ usuario?.nombre || 'Juan' }}!</h1>
     </header>
+
+    <section id="ia-agronoma" class="panel-section ia-agronoma-section">
+      <div class="section-heading">
+        <span class="eyebrow">Asistente inteligente</span>
+        <h2>IA Agrónoma y Diagnóstico del Cultivo</h2>
+        <p>Recibe recomendaciones y una receta de compost adaptada a tu cultivo.</p>
+      </div>
+
+      <form class="form-grid" #diagnosticoForm="ngForm" (ngSubmit)="solicitarDiagnosticoCultivo()">
+        <fieldset class="sensor-checkbox-group form-grid-full">
+          <legend>Fuente de condiciones</legend>
+          <div class="sensor-checkbox-list">
+            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" (ngModelChange)="cambiarOrigenDiagnostico($event)" name="origenDatos" value="SENSOR"><span>Usar datos de mis sensores IoT</span></label>
+            <label class="sensor-checkbox-option"><input type="radio" [(ngModel)]="formularioDiagnostico.origen_datos" (ngModelChange)="cambiarOrigenDiagnostico($event)" name="origenDatos" value="MANUAL"><span>Ingreso manual de condiciones</span></label>
+          </div>
+        </fieldset>
+
+        <label>Tipo de cultivo
+          <input type="text" [(ngModel)]="formularioDiagnostico.tipo_cultivo" name="tipoCultivo" placeholder="Ej.: Papa, tomate, arroz" required>
+        </label>
+        <label>Fase del cultivo
+          <select [(ngModel)]="formularioDiagnostico.fase_cultivo" name="faseCultivo" required>
+            <option>Siembra</option><option>Crecimiento</option><option>Floración</option><option>Cosecha</option>
+          </select>
+        </label>
+        <label>Área sembrada (m²)
+          <input type="number" min="0.01" step="0.01" [(ngModel)]="formularioDiagnostico.area_cultivo_m2" name="areaCultivo" required>
+        </label>
+
+        <p class="muted form-grid-full">@if (formularioDiagnostico.origen_datos === 'SENSOR') { La temperatura y la humedad ambiental mostradas se actualizan desde la última lectura de tu canal de ThingSpeak. } @else { Ingresa las condiciones que conozcas para un diagnóstico más preciso. }</p>
+        <label>Temperatura (°C)<input type="number" step="0.1" [(ngModel)]="formularioDiagnostico.temperatura" name="temperatura" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
+        <label>Humedad ambiental (%)<input type="number" min="0" max="100" step="0.1" [(ngModel)]="formularioDiagnostico.humedad_ambiente" name="humedadAmbiente" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
+        <label>pH del suelo<input type="number" min="0" max="14" step="0.1" [(ngModel)]="formularioDiagnostico.ph_suelo" name="phSuelo"></label>
+        <label class="form-grid-full">Observaciones visuales
+          <textarea rows="3" [(ngModel)]="formularioDiagnostico.observaciones_visuales" name="observaciones" placeholder="Ej.: hojas amarillas, tierra muy seca"></textarea>
+        </label>
+        <div class="actions form-grid-full">
+          <button type="button" class="btn btn-outline" (click)="obtenerUbicacionDiagnostico()">Capturar ubicación GPS</button>
+          @if (formularioDiagnostico.latitud !== null) { <span class="muted">GPS: {{ formularioDiagnostico.latitud.toFixed(5) }}, {{ formularioDiagnostico.longitud?.toFixed(5) }}</span> }
+          <button class="btn btn-primary" [disabled]="diagnosticoForm.invalid || diagnosticoCargando">{{ diagnosticoCargando ? 'Analizando…' : 'Generar diagnóstico' }}</button>
+        </div>
+      </form>
+      @if (mensajeDiagnostico) { <p [class.error]="tipoMensajeDiagnostico === 'error'" [class.success]="tipoMensajeDiagnostico === 'success'">{{ mensajeDiagnostico }}</p> }
+
+      @if (diagnosticoCultivo) {
+        <article class="ia-result-card">
+          <div class="ia-result-header"><h3>{{ diagnosticoCultivo.estado_salud_cultivo }}</h3><span class="badge">{{ diagnosticoCultivo.fuente_diagnostico === 'GEMINI' ? 'Gemini IA' : 'Motor local' }}</span></div>
+          <p>{{ diagnosticoCultivo.diagnostico_general }}</p>
+          <h4>Receta de compost: {{ diagnosticoCultivo.receta_compost.total_compost_requerido_kg }} kg</h4>
+          <div class="compost-amounts"><div><strong>{{ diagnosticoCultivo.receta_compost.kg_material_verde }} kg</strong><span>Material verde (40 %)</span></div><div><strong>{{ diagnosticoCultivo.receta_compost.kg_material_cafe }} kg</strong><span>Material café (60 %)</span></div></div>
+          <h4>Armado paso a paso</h4><ol>@for (paso of diagnosticoCultivo.receta_compost.instrucciones_armado; track paso) { <li>{{ paso }}</li> }</ol>
+          <h4>Recomendaciones inmediatas</h4><ul>@for (recomendacion of diagnosticoCultivo.recomendaciones_inmediatas; track recomendacion) { <li>{{ recomendacion }}</li> }</ul>
+          <p><strong>Alerta de plagas:</strong> {{ diagnosticoCultivo.alerta_plagas }}</p>
+          <div class="actions"><button type="button" class="btn btn-outline" (click)="descargarReporteDiagnostico()">Descargar reporte PDF</button></div>
+        </article>
+      }
+    </section>
 
     <section id="solicitar-residuos" class="panel-section">
       <div class="section-heading">
@@ -39,15 +96,19 @@
         </label>
 
         <label>Precio que ofrece pagar ($)
-          <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.precio_ofrecido_campesino" name="precioOfrecidoCampesino" required>
+          <input type="text" inputmode="decimal" [(ngModel)]="precioOfrecidoTexto" (ngModelChange)="actualizarPrecioOfrecido($event)" (focus)="editarPrecioOfrecido()" (blur)="formatearPrecioOfrecido()" name="precioOfrecidoCampesino" placeholder="$ 0,00" required>
         </label>
 
-        <label>Ubicación (dirección / barrio)
-          <input [(ngModel)]="solicitudResiduo.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
+        <label>Ubicación actual (GPS)
+          <input [value]="solicitudResiduo.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly>
         </label>
 
         <div class="actions">
-          <button class="btn btn-primary" [disabled]="residuoForm.invalid || solicitudResiduoEnviada">Enviar solicitud</button>
+          <button type="button" class="btn btn-small" (click)="obtenerUbicacionResiduo()">Obtener mi ubicación actual</button>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" [disabled]="residuoForm.invalid || solicitudResiduoEnviada || solicitudResiduo.latitud === null || solicitudResiduo.longitud === null">Enviar solicitud</button>
         </div>
       </form>
 
@@ -147,7 +208,7 @@
                   [name]="'solicitudSensor' + tipoSensorDisponible"
                   [ngModel]="solicitud.tipo_sensores.includes(tipoSensorDisponible)"
                   (ngModelChange)="alternarSensorSolicitud(tipoSensorDisponible, $event)"
-                  [disabled]="solicitudSensorEnviada"
+                  [disabled]="solicitudSensorEnviada || solicitudSensorEnviandose"
                 >
                 <span>{{ tipoSensorDisponible }}</span>
               </label>
@@ -161,13 +222,13 @@
             [(ngModel)]="solicitud.fecha_entrega_deseada"
             name="fechaEntregaDeseada"
             [min]="fechaMinimaEntrega"
-            [disabled]="solicitudSensorEnviada"
+            [disabled]="solicitudSensorEnviada || solicitudSensorEnviandose"
             required
           >
         </label>
 
         <div class="actions">
-          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || !haySensoresSeleccionados() || solicitudSensorEnviada">Enviar solicitud</button>
+          <button class="btn btn-primary" [disabled]="solicitudForm.invalid || !haySensoresSeleccionados() || solicitudSensorEnviada || solicitudSensorEnviandose">Enviar solicitud</button>
         </div>
       </form>
 
@@ -175,10 +236,21 @@
         <div class="sensor-toast" role="status">{{ mensajeConfirmacionSensor }}</div>
       }
       @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-      @if (mensajeExito) { <p class="success">{{ mensajeExito }}</p> }
 
       <div class="subsection">
         <h3>Historial de solicitudes de sensores</h3>
+        <div class="card-grid">
+          @for (solicitudSensor of solicitudesSensor; track solicitudSensor.id_solicitud_sensor) {
+            <article class="item-card">
+              <span class="eyebrow">Solicitud reciente</span>
+              <h3>{{ solicitudSensor.tipo_sensor }}</h3>
+              <p>Fecha solicitada de recepción: {{ solicitudSensor.fecha_entrega_deseada }}.</p>
+              <p>Estado: {{ solicitudSensor.estado }}</p>
+            </article>
+          } @empty {
+            <p class="empty empty-card">Aún no tienes solicitudes de sensores.</p>
+          }
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -214,50 +286,6 @@
       </div>
     </section>
 
-    <section id="mis-sensores" class="panel-section">
-      <div class="section-heading">
-        <span class="eyebrow">Monitoreo actual</span>
-        <h2>Mis sensores</h2>
-        <p>Consulta y administra los sensores vinculados a tu operación agrícola.</p>
-      </div>
-
-      @if (mostrarFormularioSensor()) {
-        <form class="form-grid sensor-edit-form" #form="ngForm" (ngSubmit)="guardar()">
-          <label>Tipo de sensor
-            <select [(ngModel)]="tipoSensor" name="tipoSensor" required>
-              <option value="">Selecciona un tipo</option>
-              <option>Temperatura</option>
-              <option>Humedad</option>
-              <option>pH</option>
-            </select>
-          </label>
-
-          <div class="actions">
-            <button class="btn btn-primary" [disabled]="form.invalid">Guardar</button>
-            @if (editandoId) {
-              <button type="button" class="btn btn-outline" (click)="cancelar()">Cancelar</button>
-            }
-          </div>
-        </form>
-      }
-
-      @if (mensajeError) { <p class="error">{{ mensajeError }}</p> }
-
-      <div class="card-grid">
-        @for (sensor of sensores; track sensor.id_sensor) {
-          <article class="item-card">
-            <span class="eyebrow">Sensor #{{ sensor.id_sensor }}</span>
-            <h3>{{ sensor.tipo_sensor }}</h3>
-            <div class="actions">
-              <button type="button" class="btn btn-small" (click)="editar(sensor)">Editar</button>
-              <button type="button" class="btn btn-danger btn-small" (click)="eliminar(sensor.id_sensor)">Eliminar</button>
-            </div>
-          </article>
-        } @empty {
-          <p class="empty empty-card">Aún no tienes sensores registrados. Cuando el administrador apruebe tu solicitud, podrás administrarlos aquí.</p>
-        }
-      </div>
-    </section>
     <section id="material-aprendizaje" class="panel-section learning-section">
       <div class="section-heading">
         <span class="eyebrow">Guia practica</span>
@@ -395,3 +423,4 @@
     </section>
   </main>
 </div>
+<app-site-footer />

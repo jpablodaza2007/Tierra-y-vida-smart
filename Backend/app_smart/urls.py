@@ -28,9 +28,14 @@ from .views import (
     ResiduoListCreateView,
     SensorDetailView,
     SensorListCreateView,
+    SimularLecturaIoTView,
     SolicitudSensorAdminViewSet,
     SolicitudResiduoView,
     SolicitudSensorView,
+    VincularSensorView,
+    TelemetriaIoTView,
+    DiagnosticoCultivoView,
+    UltimaLecturaThingSpeakView,
 )
 
 router = DefaultRouter()
@@ -61,6 +66,7 @@ urlpatterns = [
     path('residuos-disponibles/', ResiduoDisponibleView.as_view(), name='residuos_disponibles'),
     path('residuos/<int:id_residuo>/', ResiduoDetailView.as_view(), name='residuo_detalle'),
     path('solicitudes-sensor/', SolicitudSensorView.as_view(), name='solicitudes_sensor'),
+    path('solicitudes-sensor/<int:id_solicitud_sensor>/vincular/', VincularSensorView.as_view(), name='vincular_sensor'),
     path('solicitudes-residuo/', SolicitudResiduoView.as_view(), name='solicitudes_residuo'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/decision/', AuditoriaSolicitudResiduoDecisionView.as_view(), name='solicitudes_residuo_decision'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/responder-contraoferta/', RespuestaContraofertaSolicitudResiduoView.as_view(), name='solicitudes_residuo_responder_contraoferta'),
@@ -71,4 +77,8 @@ urlpatterns = [
     path('gestiones/<int:id_gestion>/', GestionDetailView.as_view(), name='gestion_detalle'),
     path('opciones-logistica/', OpcionesLogisticaView.as_view(), name='opciones_logistica'),
     path('inventario-alcaldia/', InventarioAlcaldiaView.as_view(), name='inventario_alcaldia'),
+    path('iot/telemetria/', TelemetriaIoTView.as_view(), name='iot_telemetria'),
+    path('iot/simular-lectura/', SimularLecturaIoTView.as_view(), name='iot_simular_lectura'),
+    path('iot/ultima-lectura-thingspeak/', UltimaLecturaThingSpeakView.as_view(), name='iot_ultima_lectura_thingspeak'),
+    path('ia-diagnostico-cultivo/', DiagnosticoCultivoView.as_view(), name='ia_diagnostico_cultivo'),
 ] + router.urls

@@ -50,8 +50,6 @@ export const routes: Routes = [
         title: 'Panel de Alcaldía'
     },
     {
-<<<<<<< Updated upstream
-=======
         path: 'admin',
         pathMatch: 'full',
         redirectTo: 'admin/contribuyentes'
@@ -78,7 +76,6 @@ export const routes: Routes = [
         title: 'Solicitudes de Sensores'
     },
     {
->>>>>>> Stashed changes
         path: '**',
         redirectTo: ''
     }

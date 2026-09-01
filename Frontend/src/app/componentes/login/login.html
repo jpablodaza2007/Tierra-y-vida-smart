@@ -16,25 +16,19 @@
       border: 1px solid rgba(46, 204, 113, 0.2);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(0,0,0,.7);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
       font-family: sans-serif;
       color: white;
     "
   >
-    <h2
-      style="
-        text-align: center;
-        color: rgb(46, 204, 113);
-        margin-bottom: 10px;
-      "
-    >
+    <h2 style="text-align: center; color: rgb(46, 204, 113); margin-bottom: 10px">
       Iniciar Sesión
     </h2>
 
     <p
       style="
         text-align: center;
-        color: rgba(255,255,255,.75);
+        color: rgba(255, 255, 255, 0.75);
         font-size: 14px;
         margin-bottom: 25px;
       "
@@ -43,16 +37,8 @@
     </p>
 
     <form #loginForm="ngForm" (ngSubmit)="onLogin()">
-
-      <div style="margin-bottom:15px;">
-        <label
-          style="
-            display:block;
-            margin-bottom:5px;
-            font-weight:bold;
-            color:white;
-          "
-        >
+      <div style="margin-bottom: 15px">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white">
           Usuario:
         </label>
 
@@ -62,27 +48,20 @@
           name="username"
           required
           style="
-            width:100%;
-            padding:12px;
-            background: rgba(46,204,113,.2);
-            border:1px solid rgba(46,204,113,.6);
-            border-radius:6px;
-            box-sizing:border-box;
-            color:white;
-            outline:none;
+            width: 100%;
+            padding: 12px;
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.6);
+            border-radius: 6px;
+            box-sizing: border-box;
+            color: white;
+            outline: none;
           "
-        >
+        />
       </div>
 
-      <div style="margin-bottom:20px;">
-        <label
-          style="
-            display:block;
-            margin-bottom:5px;
-            font-weight:bold;
-            color:white;
-          "
-        >
+      <div style="margin-bottom: 20px">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white">
           Contraseña:
         </label>
 
@@ -92,69 +71,64 @@
           name="password"
           required
           style="
-            width:100%;
-            padding:12px;
-            background: rgba(46,204,113,.2);
-            border:1px solid rgba(46,204,113,.6);
-            border-radius:6px;
-            box-sizing:border-box;
-            color:white;
-            outline:none;
+            width: 100%;
+            padding: 12px;
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.6);
+            border-radius: 6px;
+            box-sizing: border-box;
+            color: white;
+            outline: none;
           "
-        >
+        />
       </div>
 
       <button
         type="submit"
         [disabled]="enviando"
+        name="login"
         style="
-          width:100%;
-          padding:12px;
-          background: rgb(46,204,113);
-          color:black;
-          border:none;
-          border-radius:6px;
-          font-size:16px;
-          font-weight:bold;
-          cursor:pointer;
-          transition:.3s;
+          width: 100%;
+          padding: 12px;
+          background: rgb(46, 204, 113);
+          color: black;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: 0.3s;
         "
       >
         {{ enviando ? 'Ingresando...' : 'Ingresar' }}
       </button>
-
     </form>
 
     <div
       *ngIf="mensajeError"
       role="alert"
+      class="alerta"
       style="
-        margin-top:16px;
-        padding:12px;
-        border-radius:6px;
-        background: rgba(255,0,0,.15);
-        border:1px solid #ff4d4d;
-        color:white;
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 6px;
+        background: rgba(255, 0, 0, 0.15);
+        border: 1px solid #ff4d4d;
+        color: white;
       "
     >
-      <strong>Atención</strong><br>
+      <strong>Atención</strong><br />
       {{ mensajeError }}
     </div>
 
-    <div
-      style="
-        text-align:center;
-        margin:25px 0;
-        position:relative;
-      "
-    >
+    <div style="text-align: center; margin: 25px 0; position: relative">
       <span
         style="
-          background: rgba(0,0,0,.75);
-          padding:0 10px;
-          position:relative;
-          z-index:1;
-          color:rgba(255,255,255,.8);
+          background: rgba(0, 0, 0, 0.75);
+          padding: 0 10px;
+          position: relative;
+          z-index: 1;
+          color: rgba(255, 255, 255, 0.8);
         "
       >
         O continúa con
@@ -162,53 +136,36 @@
 
       <hr
         style="
-          position:absolute;
-          width:100%;
-          top:50%;
-          left:0;
-          border:none;
-          border-top:1px solid rgba(46,204,113,.3);
+          position: absolute;
+          width: 100%;
+          top: 50%;
+          left: 0;
+          border: none;
+          border-top: 1px solid rgba(46, 204, 113, 0.3);
         "
-      >
+      />
     </div>
 
-    <div style="display:flex; justify-content:center;">
+    <div style="display: flex; justify-content: center">
       <ng-container *ngIf="enviandoGoogle; else googleButton">
-        <span style="color:white;">
-          Validando cuenta de Google...
-        </span>
+        <span style="color: white"> Validando cuenta de Google... </span>
       </ng-container>
 
       <ng-template #googleButton>
-        <asl-google-signin-button
-          type="standard"
-          size="large"
-          text="continue_with"
-          theme="outline">
+        <asl-google-signin-button type="standard" size="large" text="continue_with" theme="outline">
         </asl-google-signin-button>
       </ng-template>
     </div>
 
-    <p
-      style="
-        text-align:center;
-        margin-top:25px;
-        color:white;
-      "
-    >
+    <p style="text-align: center; margin-top: 25px; color: white">
       ¿No tienes cuenta?
 
       <a
         routerLink="/registro"
-        style="
-          color: rgb(46,204,113);
-          font-weight:bold;
-          text-decoration:none;
-        "
+        style="color: rgb(46, 204, 113); font-weight: bold; text-decoration: none"
       >
         Regístrate aquí
       </a>
     </p>
-
   </div>
 </div>

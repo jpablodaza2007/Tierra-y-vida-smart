@@ -18,6 +18,11 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
+# Obtén una clave gratuita en https://aistudio.google.com/app/apikey y añade
+# GEMINI_API_KEY=tu_clave a Backend/.env (no la subas al repositorio).
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+THINGSPEAK_CHANNEL_ID = os.getenv('THINGSPEAK_CHANNEL_ID', '')
+THINGSPEAK_READ_API_KEY = os.getenv('THINGSPEAK_READ_API_KEY', '')
 
 
 # Quick-start development settings - unsuitable for production

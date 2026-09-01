@@ -26,7 +26,7 @@
 
       <form class="form-grid" #form="ngForm" (ngSubmit)="guardar()">
         <label>Tipo de residuo
-          <select [(ngModel)]="formulario.tipo_residuo" name="tipo" required>
+          <select [(ngModel)]="formulario.tipo_residuo" (ngModelChange)="alCambiarTipoResiduo($event)" name="tipo" required>
             <option value="">Selecciona un tipo</option>
             <option value="SECO">Residuo Seco</option>
             <option value="HUMEDO">Residuo Humedo</option>
@@ -38,12 +38,16 @@
         </label>
 
         <label>Precio Sugerido ($) que espera obtener
-          <input type="number" min="0.01" step="0.01" [(ngModel)]="formulario.precio_sugerido_contribuyente" name="precio_sugerido_contribuyente" required>
+          <input type="text" inputmode="decimal" [(ngModel)]="precioSugeridoTexto" (ngModelChange)="actualizarPrecioSugerido($event)" (focus)="editarPrecioSugerido()" (blur)="formatearPrecioSugerido()" name="precio_sugerido_contribuyente" placeholder="$ 0,00" required>
         </label>
 
-        <label>Ubicacion (direccion / barrio)
-          <input [(ngModel)]="formulario.ubicacion" name="ubicacion" required placeholder="Ej. Barrio El Prado">
+        <label>Ubicación actual (GPS)
+          <input [value]="formulario.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly>
         </label>
+
+        <div class="actions">
+          <button type="button" class="btn btn-small" (click)="obtenerUbicacionActual()">Obtener mi ubicación actual</button>
+        </div>
 
         <label>Dias de almacenamiento
           <input type="number" min="0" step="1" [(ngModel)]="formulario.dias_almacenamiento" name="dias_almacenamiento" required>
@@ -58,15 +62,17 @@
           </select>
         </label>
 
-        <label>Presencia de citricos
-          <select [(ngModel)]="formulario.presencia_citricos" name="presencia_citricos" required>
-            <option value="">Selecciona cantidad</option>
-            <option value="Ninguna">Ninguna</option>
-            <option value="Baja">Baja</option>
-            <option value="Media">Media</option>
-            <option value="Alta">Alta</option>
-          </select>
-        </label>
+        @if (formulario.tipo_residuo === 'HUMEDO') {
+          <label>Presencia de citricos
+            <select [(ngModel)]="formulario.presencia_citricos" name="presencia_citricos" required>
+              <option value="">Selecciona cantidad</option>
+              <option value="Ninguna">Ninguna</option>
+              <option value="Baja">Baja</option>
+              <option value="Media">Media</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </label>
+        }
 
         <label>Presencia de plagas
           <select [(ngModel)]="formulario.presencia_plagas" name="presencia_plagas" required>
@@ -253,3 +259,4 @@
     </section>
   </main>
 </div>
+<app-site-footer />

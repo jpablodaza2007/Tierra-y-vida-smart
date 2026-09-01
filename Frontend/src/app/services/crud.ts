@@ -64,6 +64,10 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}solicitudes-sensor/`);
   }
 
+  vincularSensor(idSolicitud: number): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/vincular/`, {});
+  }
+
   solicitarResiduo(datos: any): Observable<any> {
     return this.http.post(`${this.API_URL}solicitudes-residuo/`, datos);
   }
@@ -110,5 +114,15 @@ export class CrudService {
 
   listarInventario(): Observable<any[]> {
     return this.http.get<any[]>(`${this.API_URL}inventario-alcaldia/`);
+  }
+
+  diagnosticarCultivo(datos: any): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}ia-diagnostico-cultivo/`, datos);
+  }
+
+  obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null }> {
+    return this.http.get<{ temperatura: number | null; humedad_ambiente: number | null }>(
+      `${this.API_URL}iot/ultima-lectura-thingspeak/`
+    );
   }
 }

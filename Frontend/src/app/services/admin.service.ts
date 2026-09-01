@@ -59,4 +59,8 @@ export class AdminService {
       motivo_rechazo,
     });
   }
+
+  actualizarEntregaSensor(id: number, estado: 'EN_CAMINO' | 'ENTREGADO'): Observable<SolicitudSensorAdmin> {
+    return this.http.patch<SolicitudSensorAdmin>(`${this.API_URL}solicitudes-sensores/${id}/entrega/`, { estado });
+  }
 }

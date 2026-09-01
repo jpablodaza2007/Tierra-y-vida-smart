@@ -1,0 +1,14 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+:host { display: block; }
+.footer { background: #ffffff; color: #1e293b; padding: 60px 0; border-top: 1px solid #e2e8f0; text-align: left; font-family: 'Inter', sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+.footer-content { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+.footer-section h4 { font-size: 1rem; margin: 0 0 20px; color: #0f172a; font-weight: 700; }
+.footer-section p { font-size: 0.9rem; color: #64748b; margin: 0 0 8px; }
+.social-icons a { font-size: 1.3rem; color: #1e293b; margin-right: 15px; transition: color 0.3s; }
+.social-icons a:hover { color: #2ecc71; }
+
+@media (max-width: 768px) {
+  .footer-content { grid-template-columns: 1fr; gap: 40px; }
+}
