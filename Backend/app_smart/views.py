@@ -258,12 +258,17 @@ def agregar_al_inventario(residuo):
     inventario.save(update_fields=['cantidad_total_kg'])
 
 
-def descontar_del_inventario(tipo_residuo, cantidad):
+def descontar_del_inventario(tipo_residuo, cantidad, presencia_citricos='Ninguna'):
     cantidad_pendiente = Decimal(str(cantidad))
+    categoria = categoria_citricos(tipo_residuo, presencia_citricos)
     inventarios = list(
         InventarioAlcaldia.objects.select_for_update()
-        .filter(tipo_residuo=tipo_residuo, cantidad_total_kg__gt=0)
-        .order_by('presencia_citricos', 'id_inventario')
+        .filter(
+            tipo_residuo=tipo_residuo,
+            presencia_citricos=categoria,
+            cantidad_total_kg__gt=0,
+        )
+        .order_by('presencia_citricos', 'id')
     )
     disponible = sum((Decimal(str(item.cantidad_total_kg)) for item in inventarios), Decimal('0'))
     if disponible < cantidad_pendiente:
@@ -940,6 +945,7 @@ class SolicitudResiduoView(APIView):
                 'id_campesino': solicitud.id_campesino_id,
                 'campesino_nombre': campesino_nombre,
                 'tipo_residuo': solicitud.tipo_residuo,
+                'presencia_citricos': solicitud.presencia_citricos,
                 'cantidad_kg': solicitud.cantidad_kg,
                 'cantidad_solicitada': solicitud.cantidad_solicitada,
                 'precio_ofrecido_campesino': solicitud.precio_ofrecido_campesino,
@@ -953,6 +959,7 @@ class SolicitudResiduoView(APIView):
 
     def post(self, request):
         tipo_residuo = request.data.get('tipo_residuo')
+        presencia_citricos = request.data.get('presencia_citricos')
         cantidad_kg = request.data.get('cantidad_kg') or request.data.get('cantidad_solicitada')
         precio_ofrecido = request.data.get('precio_ofrecido_campesino')
         latitud = request.data.get('latitud')
@@ -965,6 +972,12 @@ class SolicitudResiduoView(APIView):
             return Response({'error': 'Debe seleccionar el tipo de residuo.'}, status=status.HTTP_400_BAD_REQUEST)
         if tipo_residuo not in {'SECO', 'HUMEDO'}:
             return Response({'error': 'Tipo de residuo inválido. Usa SECO o HUMEDO.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        categorias_citricos = {'ninguna', 'baja', 'media', 'alta'}
+        categoria_recibida = str(presencia_citricos or '').strip().lower()
+        if tipo_residuo == 'HUMEDO' and categoria_recibida not in categorias_citricos:
+            return Response({'error': 'Debes seleccionar la categoría de cítricos para el residuo húmedo.'}, status=status.HTTP_400_BAD_REQUEST)
+        presencia_citricos = categoria_citricos(tipo_residuo, presencia_citricos)
 
         try:
             cantidad_kg = float(cantidad_kg)
@@ -995,6 +1008,7 @@ class SolicitudResiduoView(APIView):
         SolicitudResiduo.objects.create(
             id_campesino=campesino,
             tipo_residuo=tipo_residuo,
+            presencia_citricos=presencia_citricos,
             cantidad_kg=cantidad_kg,
             cantidad_solicitada=cantidad_kg,
             precio_ofrecido_campesino=precio_ofrecido,
@@ -1017,6 +1031,7 @@ def serializar_solicitud_residuo(solicitud):
         'id_campesino': solicitud.id_campesino_id,
         'campesino_nombre': campesino_nombre,
         'tipo_residuo': solicitud.tipo_residuo,
+        'presencia_citricos': solicitud.presencia_citricos,
         'cantidad_kg': solicitud.cantidad_kg,
         'cantidad_solicitada': solicitud.cantidad_solicitada,
         'precio_ofrecido_campesino': solicitud.precio_ofrecido_campesino,
@@ -1601,6 +1616,7 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
     def perform_create(self, serializer):
         perfil = self.perfil_actual()
         tipo_residuo = serializer.validated_data.get('tipo_residuo')
+        presencia_citricos = serializer.validated_data.get('presencia_citricos', 'Ninguna')
         cantidad_kg = serializer.validated_data.get('cantidad_kg')
         campesino = serializer.validated_data.get('id_campesino')
 
@@ -1642,7 +1658,7 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
                 raise serializers.ValidationError({'solicitud_id': ['El ID de la solicitud de residuo no es válido.']})
 
         with transaction.atomic():
-            descontar_del_inventario(tipo_residuo, cantidad_a_restar)
+            descontar_del_inventario(tipo_residuo, cantidad_a_restar, presencia_citricos)
             serializer.save(
                 id_usuario_alcaldia=perfil,
                 ubicacion_entrega=ubicacion_entrega,

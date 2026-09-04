@@ -23,10 +23,22 @@
 }
 
 .navbar-brand {
+  align-items: center;
+  display: flex;
   font-size: 1rem;
   font-weight: 800;
+  gap: 8px;
   letter-spacing: 0.04em;
   color: white;
+}
+
+.navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 36px;
+  object-fit: cover;
+  width: 36px;
 }
 
 .green-text {
@@ -1253,11 +1265,23 @@ tr:hover {
 }
 
 .alcaldia-page .navbar-brand {
+  align-items: center;
+  display: flex;
   flex: 0 0 auto;
   font-size: 1.4rem;
   font-weight: 700;
+  gap: 10px;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.alcaldia-page .navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 42px;
+  object-fit: cover;
+  width: 42px;
 }
 
 .alcaldia-page .navbar-actions {
