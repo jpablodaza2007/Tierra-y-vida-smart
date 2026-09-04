@@ -46,7 +46,22 @@
   padding: 15px 0;
 }
 
-.logo { font-size: 1.4rem; font-weight: 700; color: #ffffff !important; }
+.logo {
+  align-items: center;
+  color: #ffffff !important;
+  display: flex;
+  font-size: 1.4rem;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.logo .navbar-logo {
+  border-radius: 50%;
+  display: block;
+  height: 40px;
+  object-fit: cover;
+  width: 40px;
+}
 .green-text { color: var(--primary-green) !important; }
 
 .nav-links {

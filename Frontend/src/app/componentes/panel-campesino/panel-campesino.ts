@@ -23,7 +23,7 @@ export class PanelCampesinoComponent implements OnInit {
   mensajeConfirmacionSensor = '';
   seccionActual: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo' = 'sensores';
   solicitud = { tipo_sensores: [] as string[], fecha_entrega_deseada: '' };
-  solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
+  solicitudResiduo = { tipo_residuo: '', presencia_citricos: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
   precioOfrecidoTexto = '';
   solicitudSensorEnviada = false;
   solicitudSensorEnviandose = false;
@@ -386,6 +386,10 @@ export class PanelCampesinoComponent implements OnInit {
       this.mensajeError = 'Selecciona un tipo de residuo.';
       return;
     }
+    if (this.solicitudResiduo.tipo_residuo === 'HUMEDO' && !this.solicitudResiduo.presencia_citricos) {
+      this.mensajeError = 'Selecciona la categoría de cítricos del residuo húmedo.';
+      return;
+    }
     if (this.solicitudResiduo.cantidad_kg == null || Number(this.solicitudResiduo.cantidad_kg) <= 0) {
       this.mensajeError = 'Ingresa la cantidad en kg que necesitas.';
       return;
@@ -424,6 +428,16 @@ export class PanelCampesinoComponent implements OnInit {
     const precio = this.convertirMonedaANumero(this.precioOfrecidoTexto);
     this.solicitudResiduo.precio_ofrecido_campesino = precio;
     this.precioOfrecidoTexto = precio == null ? '' : this.formatearMoneda(precio);
+  }
+
+  formatearPrecio(valor: number | string | null | undefined): string {
+    if (valor === null || valor === undefined || valor === '') return '—';
+    const precio = Number(valor);
+    return Number.isFinite(precio) ? this.formatearMoneda(precio) : '—';
+  }
+
+  obtenerPrecioFinal(solicitud: any): number | string | null {
+    return solicitud.contraoferta_alcaldia ?? solicitud.precio_ofrecido_campesino;
   }
 
   responderContraofertaSolicitud(solicitud: any, decision: 'aceptar' | 'rechazar'): void {
