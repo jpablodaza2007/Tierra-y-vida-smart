@@ -3,6 +3,7 @@ import random
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -32,6 +33,7 @@ from .models import (
     GestionLogistica,
     InventarioAlcaldia,
     LecturaSensor,
+    RecomendacionIa,
     ResiduoOrganico,
     Sensor,
     SolicitudResiduo,
@@ -39,6 +41,7 @@ from .models import (
     Usuario,
 )
 from .services.ia_agronoma import diagnosticar_cultivo
+from .services.reporte_agronomico import generar_reporte_agronomico
 from .services.thingspeak import obtener_ultima_lectura_thingspeak
 from .serializers import (
     GestionLogisticaSerializer,
@@ -96,6 +99,7 @@ class DiagnosticoCultivoView(APIView):
 
         # SENSOR toma la última lectura de un dispositivo vinculado. Los campos
         # ausentes en telemetría conservan el valor manual para no perder datos.
+        lectura = None
         if datos['origen_datos'] == 'SENSOR':
             lectura_thingspeak = obtener_ultima_lectura_thingspeak()
             if lectura_thingspeak is not None:
@@ -121,7 +125,58 @@ class DiagnosticoCultivoView(APIView):
         resultado, fuente = diagnosticar_cultivo(datos)
         # Transparencia: el cliente puede indicar si recibió IA externa o respaldo seguro.
         resultado['fuente_diagnostico'] = fuente
+        titulo = f"Diagnóstico agronómico · {datos['tipo_cultivo']}"
+        try:
+            contenido_pdf = generar_reporte_agronomico(datos, resultado, perfil.nombre)
+        except RuntimeError as error:
+            logging.exception('No se pudo generar el informe PDF de la IA')
+            return Response(
+                {'error': 'El análisis se realizó, pero falta configurar la generación del informe PDF.', 'detail': str(error)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        recomendacion = RecomendacionIa(
+            campesino=perfil,
+            id_lectura=lectura,
+            titulo=titulo,
+            mensaje_ia=resultado.get('diagnostico_general', ''),
+            datos_entrada=datos,
+        )
+        nombre_archivo = f"diagnostico-{perfil.id_usuario}-{timezone.now():%Y%m%d-%H%M%S}.pdf"
+        recomendacion.archivo_pdf.save(nombre_archivo, ContentFile(contenido_pdf), save=False)
+        recomendacion.save()
+        resultado['recomendacion'] = {
+            'id_recomendacion': recomendacion.id_recomendacion,
+            'titulo': recomendacion.titulo,
+            'fecha_generacion': recomendacion.fecha_generacion,
+            'archivo_pdf': recomendacion.archivo_pdf.url,
+        }
         return Response(resultado, status=status.HTTP_200_OK)
+
+
+class RecomendacionIaHistorialView(APIView):
+    """Devuelve los cinco informes más recientes del campesino autenticado."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden consultar su historial de recomendaciones.'}, status=status.HTTP_403_FORBIDDEN)
+
+        recomendaciones = RecomendacionIa.objects.filter(campesino=perfil).only(
+            'id_recomendacion', 'titulo', 'mensaje_ia', 'archivo_pdf', 'fecha_generacion', 'datos_entrada'
+        )[:5]
+        return Response([
+            {
+                'id_recomendacion': recomendacion.id_recomendacion,
+                'titulo': recomendacion.titulo,
+                'resumen': recomendacion.mensaje_ia,
+                'cultivo': recomendacion.datos_entrada.get('tipo_cultivo', ''),
+                'fecha_generacion': recomendacion.fecha_generacion,
+                'archivo_pdf': recomendacion.archivo_pdf.url if recomendacion.archivo_pdf else None,
+            }
+            for recomendacion in recomendaciones
+        ])
 
 
 class UltimaLecturaThingSpeakView(APIView):

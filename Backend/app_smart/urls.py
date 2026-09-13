@@ -35,6 +35,7 @@ from .views import (
     VincularSensorView,
     TelemetriaIoTView,
     DiagnosticoCultivoView,
+    RecomendacionIaHistorialView,
     UltimaLecturaThingSpeakView,
 )
 
@@ -81,4 +82,5 @@ urlpatterns = [
     path('iot/simular-lectura/', SimularLecturaIoTView.as_view(), name='iot_simular_lectura'),
     path('iot/ultima-lectura-thingspeak/', UltimaLecturaThingSpeakView.as_view(), name='iot_ultima_lectura_thingspeak'),
     path('ia-diagnostico-cultivo/', DiagnosticoCultivoView.as_view(), name='ia_diagnostico_cultivo'),
+    path('ia-recomendaciones/', RecomendacionIaHistorialView.as_view(), name='ia_recomendaciones'),
 ] + router.urls

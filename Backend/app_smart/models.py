@@ -177,12 +177,18 @@ class LecturaSensor(models.Model):
 
 class RecomendacionIa(models.Model):
     id_recomendacion = models.AutoField(primary_key=True)
-    id_lectura = models.OneToOneField(LecturaSensor, models.DO_NOTHING, db_column='id_lectura', blank=True, null=True)
+    id_lectura = models.ForeignKey(LecturaSensor, models.DO_NOTHING, db_column='id_lectura', related_name='recomendaciones_ia', blank=True, null=True)
+    campesino = models.ForeignKey('Usuario', models.DO_NOTHING, db_column='id_campesino', related_name='recomendaciones_ia', null=True)
+    titulo = models.CharField(max_length=160)
     mensaje_ia = models.TextField(blank=True, null=True)
+    archivo_pdf = models.FileField(upload_to='recomendaciones_ia/%Y/%m/', blank=True, null=True)
+    datos_entrada = models.JSONField(default=dict)
+    fecha_generacion = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
         managed = True
         db_table = 'recomendacion_ia'
+        ordering = ['-fecha_generacion']
 
 
 class ResiduoOrganico(models.Model):

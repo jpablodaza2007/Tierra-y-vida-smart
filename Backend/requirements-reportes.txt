@@ -1,0 +1,2 @@
+# Complemento para habilitar los informes PDF de la IA Agrónoma.
+reportlab>=4.2,<5

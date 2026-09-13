@@ -71,9 +71,32 @@
           <h4>Armado paso a paso</h4><ol>@for (paso of diagnosticoCultivo.receta_compost.instrucciones_armado; track paso) { <li>{{ paso }}</li> }</ol>
           <h4>Recomendaciones inmediatas</h4><ul>@for (recomendacion of diagnosticoCultivo.recomendaciones_inmediatas; track recomendacion) { <li>{{ recomendacion }}</li> }</ul>
           <p><strong>Alerta de plagas:</strong> {{ diagnosticoCultivo.alerta_plagas }}</p>
-          <div class="actions"><button type="button" class="btn btn-outline" (click)="descargarReporteDiagnostico()">Descargar reporte PDF</button></div>
+          @if (diagnosticoCultivo.recomendacion?.archivo_pdf) {
+            <div class="actions"><button type="button" class="btn btn-outline" (click)="abrirReporte(diagnosticoCultivo.recomendacion)">Abrir informe PDF</button></div>
+          }
         </article>
       }
+
+      <div class="subsection ia-history">
+        <div class="section-heading">
+          <span class="eyebrow">Mis informes</span>
+          <h3>Últimas 5 recomendaciones de la IA</h3>
+          <p>Consulta y descarga los informes que la IA generó para tu cultivo.</p>
+        </div>
+        <div class="ia-history-grid">
+          @for (recomendacion of recomendacionesIa; track recomendacion.id_recomendacion) {
+            <article class="ia-history-card">
+              <span class="eyebrow">{{ recomendacion.cultivo || 'Cultivo' }}</span>
+              <h4>{{ recomendacion.titulo }}</h4>
+              <p>{{ recomendacion.resumen }}</p>
+              <time>{{ formatearFechaRecomendacion(recomendacion.fecha_generacion) }}</time>
+              <button type="button" class="btn btn-outline btn-small" [disabled]="!recomendacion.archivo_pdf" (click)="abrirReporte(recomendacion)">Ver PDF</button>
+            </article>
+          } @empty {
+            <p class="empty empty-card">Aún no tienes informes. Genera un diagnóstico para guardar el primero.</p>
+          }
+        </div>
+      </div>
     </section>
 
     <section id="solicitar-residuos" class="panel-section">
