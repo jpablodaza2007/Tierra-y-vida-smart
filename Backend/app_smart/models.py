@@ -231,6 +231,13 @@ class Sensor(models.Model):
     class Meta:
         managed = True
         db_table = 'sensor'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['thingspeak_channel_id'],
+                condition=models.Q(thingspeak_channel_id__isnull=False) & ~models.Q(thingspeak_channel_id=''),
+                name='sensor_thingspeak_channel_unico',
+            ),
+        ]
 
 
 class SolicitudSensor(models.Model):

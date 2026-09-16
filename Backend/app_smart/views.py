@@ -436,7 +436,9 @@ def enviar_correo_aprobacion(usuario, *, nombre_usuario=None):
         message=mensaje,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[destinatario],
-        fail_silently=False,
+        # La activación ya se confirmó mediante un enlace firmado: este correo
+        # es una notificación y no debe bloquear el acceso si Gmail falla.
+        fail_silently=True,
     )
     return True
 
