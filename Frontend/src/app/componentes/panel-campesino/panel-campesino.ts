@@ -30,6 +30,7 @@ export class PanelCampesinoComponent implements OnInit {
   asignaciones: any[] = [];
   solicitudesResiduo: any[] = [];
   solicitudesSensor: any[] = [];
+  conexionThingSpeak: Record<number, { thingspeak_channel_id: string; thingspeak_read_api_key: string }> = {};
   recomendacionesIa: any[] = [];
   fechaMinimaEntrega = this.obtenerFechaLocalActual();
   diagnosticoCultivo: any = null;
@@ -292,6 +293,43 @@ export class PanelCampesinoComponent implements OnInit {
         this.mensajeError = this.obtenerMensajeError(error, 'No se pudo enviar la solicitud.');
       }
     });
+  }
+
+  puedeConfirmarEntrega(solicitud: any): boolean {
+    return ['ACEPTADO', 'EN_CAMINO', 'ENTREGADO'].includes(solicitud.estado)
+      && solicitud.fecha_entrega_deseada === this.obtenerFechaLocalActual()
+      && !solicitud.fecha_recepcion_confirmada;
+  }
+
+  confirmarEntregaSensor(solicitud: any): void {
+    this.crud.confirmarEntregaSensor(solicitud.id_solicitud_sensor).subscribe({
+      next: () => {
+        this.mensajeExito = 'Recepción confirmada. Ahora puedes conectar este sensor a ThingSpeak.';
+        this.mensajeError = '';
+        this.cargar();
+      },
+      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo confirmar la recepción del sensor.')
+    });
+  }
+
+  conectarSensorThingSpeak(solicitud: any): void {
+    const datos = this.conexionThingSpeak[solicitud.id_solicitud_sensor] || { thingspeak_channel_id: '', thingspeak_read_api_key: '' };
+    if (!datos.thingspeak_channel_id.trim()) {
+      this.mensajeError = 'Ingresa el ID de tu canal de ThingSpeak.';
+      return;
+    }
+    this.crud.conectarSensorThingSpeak(solicitud.sensor.id_sensor, datos).subscribe({
+      next: () => {
+        this.mensajeExito = 'Sensor conectado a tu canal propio de ThingSpeak.';
+        this.mensajeError = '';
+        this.cargar();
+      },
+      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo conectar el sensor a ThingSpeak.')
+    });
+  }
+
+  solicitudConexion(idSolicitud: number): { thingspeak_channel_id: string; thingspeak_read_api_key: string } {
+    return this.conexionThingSpeak[idSolicitud] ||= { thingspeak_channel_id: '', thingspeak_read_api_key: '' };
   }
 
   solicitarResiduo(): void {

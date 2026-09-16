@@ -64,8 +64,12 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}solicitudes-sensor/`);
   }
 
-  vincularSensor(idSolicitud: number): Observable<any> {
-    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/vincular/`, {});
+  confirmarEntregaSensor(idSolicitud: number): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/confirmar-entrega/`, {});
+  }
+
+  conectarSensorThingSpeak(idSensor: number, datos: { thingspeak_channel_id: string; thingspeak_read_api_key?: string }): Observable<any> {
+    return this.http.post(`${this.API_URL}sensores/${idSensor}/conectar-thingspeak/`, datos);
   }
 
   solicitarResiduo(datos: any): Observable<any> {

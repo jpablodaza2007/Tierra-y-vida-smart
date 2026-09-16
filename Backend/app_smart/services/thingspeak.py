@@ -15,10 +15,10 @@ def _a_numero(valor):
         return None
 
 
-def obtener_ultima_lectura_thingspeak():
+def obtener_ultima_lectura_thingspeak(channel_id=None, read_api_key=None):
     """Retorna temperatura y humedad ambiental, o ``None`` si no están disponibles."""
-    channel_id = getattr(settings, 'THINGSPEAK_CHANNEL_ID', '')
-    read_api_key = getattr(settings, 'THINGSPEAK_READ_API_KEY', '')
+    channel_id = channel_id or getattr(settings, 'THINGSPEAK_CHANNEL_ID', '')
+    read_api_key = read_api_key or getattr(settings, 'THINGSPEAK_READ_API_KEY', '')
     if not channel_id:
         return None
 

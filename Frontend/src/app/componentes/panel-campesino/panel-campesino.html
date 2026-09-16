@@ -297,6 +297,7 @@
                 <th>Fecha deseada de recepción</th>
                 <th>Estado</th>
                 <th>Anotacion</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -312,10 +313,25 @@
                       <span class="muted">Sin observaciones</span>
                     }
                   </td>
+                  <td>
+                    @if (puedeConfirmarEntrega(solicitudSensor)) {
+                      <button type="button" class="btn btn-primary" (click)="confirmarEntregaSensor(solicitudSensor)">Confirmar que llegó</button>
+                    } @else if (solicitudSensor.fecha_recepcion_confirmada && solicitudSensor.sensor && !solicitudSensor.sensor.conectado_thingspeak) {
+                      <div class="form-grid">
+                        <input type="text" placeholder="ID de canal ThingSpeak" [(ngModel)]="solicitudConexion(solicitudSensor.id_solicitud_sensor).thingspeak_channel_id" [ngModelOptions]="{standalone: true}">
+                        <input type="password" placeholder="Read API Key (si es privado)" [(ngModel)]="solicitudConexion(solicitudSensor.id_solicitud_sensor).thingspeak_read_api_key" [ngModelOptions]="{standalone: true}">
+                        <button type="button" class="btn btn-primary" (click)="conectarSensorThingSpeak(solicitudSensor)">Conectar</button>
+                      </div>
+                    } @else if (solicitudSensor.sensor?.conectado_thingspeak) {
+                      <span class="success">Conectado a ThingSpeak</span>
+                    } @else {
+                      <span class="muted">Disponible el día de entrega programado</span>
+                    }
+                  </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="4" class="empty">Aún no tienes solicitudes de sensores.</td>
+                  <td colspan="5" class="empty">Aún no tienes solicitudes de sensores.</td>
                 </tr>
               }
             </tbody>

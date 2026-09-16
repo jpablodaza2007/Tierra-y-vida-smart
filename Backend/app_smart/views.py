@@ -101,7 +101,14 @@ class DiagnosticoCultivoView(APIView):
         # ausentes en telemetría conservan el valor manual para no perder datos.
         lectura = None
         if datos['origen_datos'] == 'SENSOR':
-            lectura_thingspeak = obtener_ultima_lectura_thingspeak()
+            campesino = Campesino.objects.filter(id_usuario=perfil).first()
+            sensor = Sensor.objects.filter(
+                id_campesino=campesino,
+                thingspeak_channel_id__isnull=False,
+            ).exclude(thingspeak_channel_id='').order_by('-fecha_conexion_thingspeak').first()
+            lectura_thingspeak = obtener_ultima_lectura_thingspeak(
+                sensor.thingspeak_channel_id, sensor.thingspeak_read_api_key,
+            ) if sensor else None
             if lectura_thingspeak is not None:
                 datos.update(lectura_thingspeak)
 
@@ -192,7 +199,14 @@ class UltimaLecturaThingSpeakView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        lectura = obtener_ultima_lectura_thingspeak()
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        sensor = Sensor.objects.filter(
+            id_campesino=campesino,
+            thingspeak_channel_id__isnull=False,
+        ).exclude(thingspeak_channel_id='').order_by('-fecha_conexion_thingspeak').first()
+        if sensor is None:
+            return Response({'error': 'Primero confirma la recepción y conecta tu propio sensor a ThingSpeak.'}, status=status.HTTP_404_NOT_FOUND)
+        lectura = obtener_ultima_lectura_thingspeak(sensor.thingspeak_channel_id, sensor.thingspeak_read_api_key)
         if lectura is None:
             return Response(
                 {'error': 'No hay una lectura disponible en ThingSpeak. Verifica la configuración y que el sensor haya publicado datos.'},
@@ -871,6 +885,8 @@ class SolicitudSensorView(APIView):
                 'motivo_rechazo': solicitud.motivo_rechazo or '',
                 'estado': solicitud.estado,
                 'fecha_solicitud': solicitud.fecha_solicitud,
+                'fecha_recepcion_confirmada': solicitud.fecha_recepcion_confirmada,
+                'sensor': SensorSerializer(solicitud.sensor).data if hasattr(solicitud, 'sensor') else None,
             }
             for solicitud in solicitudes
         ], status=status.HTTP_200_OK)
@@ -935,13 +951,13 @@ class SolicitudSensorView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class VincularSensorView(APIView):
+class ConfirmarEntregaSensorView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id_solicitud_sensor):
         perfil = obtener_perfil(request.user)
         if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
-            return Response({'error': 'Solo los campesinos pueden vincular sensores.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Solo los campesinos pueden confirmar la recepción de sus sensores.'}, status=status.HTTP_403_FORBIDDEN)
 
         campesino = Campesino.objects.filter(id_usuario=perfil).first()
         solicitud = SolicitudSensor.objects.filter(
@@ -951,9 +967,10 @@ class VincularSensorView(APIView):
         if solicitud is None:
             return Response({'error': 'No se encontró la solicitud de sensor.'}, status=status.HTTP_404_NOT_FOUND)
 
-        fecha_cumplida = solicitud.fecha_entrega_deseada <= timezone.localdate()
-        if solicitud.estado != 'ENTREGADO' and not (solicitud.estado in {'ACEPTADO', 'EN_CAMINO'} and fecha_cumplida):
-            return Response({'error': 'El sensor aún no está disponible para vincular.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.estado not in {'ACEPTADO', 'EN_CAMINO', 'ENTREGADO'}:
+            return Response({'error': 'La solicitud debe estar aceptada antes de confirmar la entrega.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.fecha_entrega_deseada != timezone.localdate():
+            return Response({'error': 'Solo puedes confirmar la recepción el día programado de entrega.'}, status=status.HTTP_400_BAD_REQUEST)
 
         sensor, creado = Sensor.objects.get_or_create(
             id_solicitud_sensor=solicitud,
@@ -961,7 +978,40 @@ class VincularSensorView(APIView):
         )
         if not creado and sensor.id_campesino_id != campesino.id_campesino:
             return Response({'error': 'Este sensor no pertenece al campesino autenticado.'}, status=status.HTTP_403_FORBIDDEN)
+        solicitud.estado = 'ENTREGADO'
+        if solicitud.fecha_recepcion_confirmada is None:
+            solicitud.fecha_recepcion_confirmada = timezone.now()
+        solicitud.save(update_fields=['estado', 'fecha_recepcion_confirmada'])
         return Response(SensorSerializer(sensor).data, status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK)
+
+
+class ConectarThingSpeakView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id_sensor):
+        perfil = obtener_perfil(request.user)
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden conectar sensores.'}, status=status.HTTP_403_FORBIDDEN)
+
+        canal = str(request.data.get('thingspeak_channel_id') or '').strip()
+        clave_lectura = str(request.data.get('thingspeak_read_api_key') or '').strip()
+        if not canal.isdigit():
+            return Response({'error': 'Ingresa un ID de canal de ThingSpeak válido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        sensor = Sensor.objects.filter(pk=id_sensor, id_campesino=campesino).first()
+        if sensor is None:
+            return Response({'error': 'No se encontró un sensor propio para conectar.'}, status=status.HTTP_404_NOT_FOUND)
+        if not sensor.id_solicitud_sensor or sensor.id_solicitud_sensor.fecha_recepcion_confirmada is None:
+            return Response({'error': 'Primero confirma que recibiste el sensor en la fecha programada.'}, status=status.HTTP_400_BAD_REQUEST)
+        if Sensor.objects.filter(thingspeak_channel_id=canal).exclude(pk=sensor.pk).exists():
+            return Response({'error': 'Ese canal de ThingSpeak ya está conectado a otro sensor.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sensor.thingspeak_channel_id = canal
+        sensor.thingspeak_read_api_key = clave_lectura
+        sensor.fecha_conexion_thingspeak = timezone.now()
+        sensor.save(update_fields=['thingspeak_channel_id', 'thingspeak_read_api_key', 'fecha_conexion_thingspeak'])
+        return Response(SensorSerializer(sensor).data, status=status.HTTP_200_OK)
 
 
 class SolicitudResiduoView(APIView):

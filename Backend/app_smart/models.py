@@ -224,6 +224,9 @@ class Sensor(models.Model):
     id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
     tipo_sensor = models.CharField(max_length=50, blank=True, null=True)
     id_solicitud_sensor = models.OneToOneField('SolicitudSensor', models.DO_NOTHING, db_column='id_solicitud_sensor', blank=True, null=True)
+    thingspeak_channel_id = models.CharField(max_length=50, blank=True, null=True)
+    thingspeak_read_api_key = models.CharField(max_length=100, blank=True, null=True)
+    fecha_conexion_thingspeak = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = True
@@ -237,6 +240,7 @@ class SolicitudSensor(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_DICTAMEN_CHOICES, default='PENDIENTE')
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
     fecha_entrega_deseada = models.DateField()
+    fecha_recepcion_confirmada = models.DateTimeField(blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
 
     class Meta:

@@ -222,10 +222,15 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
 
 
 class SensorSerializer(serializers.ModelSerializer):
+    conectado_thingspeak = serializers.SerializerMethodField()
+
     class Meta:
         model = Sensor
-        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
-        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
+        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor', 'thingspeak_channel_id', 'fecha_conexion_thingspeak', 'conectado_thingspeak']
+        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor', 'thingspeak_channel_id', 'fecha_conexion_thingspeak', 'conectado_thingspeak']
+
+    def get_conectado_thingspeak(self, obj):
+        return bool(obj.thingspeak_channel_id)
 
 
 class RegistroAdminSerializer(serializers.ModelSerializer):
