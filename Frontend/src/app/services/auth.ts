@@ -4,6 +4,7 @@ import { HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { API_URL } from './api.config';
 
 export interface SesionUsuario {
   nombre: string;
@@ -15,7 +16,7 @@ export interface SesionUsuario {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = '/api/auth/';
+  private readonly API_URL = `${API_URL}auth/`;
 
   constructor(
     private http: HttpClient,

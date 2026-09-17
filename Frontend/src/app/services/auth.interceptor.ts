@@ -8,13 +8,14 @@ import {
 } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, catchError, finalize, map, shareReplay, switchMap, throwError } from 'rxjs';
+import { API_URL } from './api.config';
 
 interface RefreshResponse {
   access: string;
   refresh?: string;
 }
 
-const REFRESH_URL = '/api/auth/login/refresh/';
+const REFRESH_URL = `${API_URL}auth/login/refresh/`;
 const PUBLIC_AUTH_URLS = [
   '/auth/login/',
   '/auth/login/refresh/',
