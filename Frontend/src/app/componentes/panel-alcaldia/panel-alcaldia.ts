@@ -46,6 +46,7 @@ export class PanelAlcaldiaComponent implements OnInit {
   nuevoFormulario() {
     return {
       tipo_residuo: '' as 'SECO' | 'HUMEDO' | '',
+      presencia_citricos: '',
       cantidad_kg: null as number | null,
       id_campesino: '' as string | number,
       fecha_asignacion: '',
@@ -298,6 +299,7 @@ export class PanelAlcaldiaComponent implements OnInit {
 
     const payload = {
       tipo_residuo: this.formAsignacion.tipo_residuo,
+      presencia_citricos: this.formAsignacion.tipo_residuo === 'HUMEDO' ? this.formAsignacion.presencia_citricos : 'Ninguna',
       cantidad_kg: Number(this.formAsignacion.cantidad_kg),
       campesino_id: this.normalizarIdCampesino(this.formAsignacion.id_campesino),
       fecha_asignacion: this.formAsignacion.fecha_asignacion ? new Date(this.formAsignacion.fecha_asignacion).toISOString() : null,
@@ -360,6 +362,7 @@ export class PanelAlcaldiaComponent implements OnInit {
     this.solicitudSeleccionadaId = null;
     this.formAsignacion = {
       tipo_residuo: gestion.tipo_residuo,
+      presencia_citricos: gestion.presencia_citricos || '',
       cantidad_kg: parseFloat(gestion.cantidad_kg),
       id_campesino: gestion.campesino_id,
       fecha_asignacion: gestion.fecha_asignacion?.slice(0, 16) || '',
@@ -374,6 +377,7 @@ export class PanelAlcaldiaComponent implements OnInit {
   seleccionarSolicitud(solicitud: any): void {
     this.solicitudSeleccionadaId = solicitud.id_solicitud_residuo ?? solicitud.id ?? null;
     this.formAsignacion.tipo_residuo = solicitud.tipo_residuo;
+    this.formAsignacion.presencia_citricos = solicitud.presencia_citricos || '';
     this.formAsignacion.cantidad_kg = parseFloat(solicitud.cantidad_solicitada ?? solicitud.cantidad_kg);
     this.formAsignacion.id_campesino = solicitud.id_campesino;
     this.formAsignacion.ubicacion = solicitud.ubicacion_entrega || solicitud.ubicacion || solicitud.campesino?.ubicacion || '';
@@ -431,6 +435,16 @@ export class PanelAlcaldiaComponent implements OnInit {
     const destino = tipo === 'residuo' ? this.contraofertasResiduo : this.contraofertasSolicitudResiduo;
     const valor = this.convertirMonedaANumero(destino[id]);
     destino[id] = valor == null ? '' : this.formatearMoneda(valor);
+  }
+
+  formatearPrecio(valor: number | string | null | undefined): string {
+    if (valor === null || valor === undefined || valor === '') return '—';
+    const precio = Number(valor);
+    return Number.isFinite(precio) ? this.formatearMoneda(precio) : '—';
+  }
+
+  obtenerPrecioFinal(registro: any, campoPrecioPropuesto: string): number | string | null {
+    return registro.contraoferta_alcaldia ?? registro[campoPrecioPropuesto];
   }
 
   private formatearMoneda(valor: number): string {

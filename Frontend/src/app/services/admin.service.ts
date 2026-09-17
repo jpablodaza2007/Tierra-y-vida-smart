@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { API_URL } from './api.config';
 
 export type EstadoDictamen = 'ACEPTADO' | 'RECHAZADO';
 
@@ -29,7 +30,7 @@ export interface SolicitudSensorAdmin {
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
-  private readonly API_URL = '/api/admin/';
+  private readonly API_URL = `${API_URL}admin/`;
 
   constructor(private http: HttpClient) {}
 

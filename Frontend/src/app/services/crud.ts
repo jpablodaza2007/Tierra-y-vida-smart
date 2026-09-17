@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { API_URL } from './api.config';
 
 @Injectable({ providedIn: 'root' })
 export class CrudService {
-  private readonly API_URL = '/api/';
+  private readonly API_URL = API_URL;
 
   constructor(private http: HttpClient) {}
 
@@ -64,8 +65,12 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}solicitudes-sensor/`);
   }
 
-  vincularSensor(idSolicitud: number): Observable<any> {
-    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/vincular/`, {});
+  confirmarEntregaSensor(idSolicitud: number): Observable<any> {
+    return this.http.post(`${this.API_URL}solicitudes-sensor/${idSolicitud}/confirmar-entrega/`, {});
+  }
+
+  conectarSensorThingSpeak(idSensor: number, datos: { thingspeak_channel_id: string; thingspeak_read_api_key?: string }): Observable<any> {
+    return this.http.post(`${this.API_URL}sensores/${idSensor}/conectar-thingspeak/`, datos);
   }
 
   solicitarResiduo(datos: any): Observable<any> {
@@ -118,6 +123,10 @@ export class CrudService {
 
   diagnosticarCultivo(datos: any): Observable<any> {
     return this.http.post<any>(`${this.API_URL}ia-diagnostico-cultivo/`, datos);
+  }
+
+  listarRecomendacionesIa(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API_URL}ia-recomendaciones/`);
   }
 
   obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null }> {

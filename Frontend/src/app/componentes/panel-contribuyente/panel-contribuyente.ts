@@ -252,6 +252,16 @@ export class PanelContribuyenteComponent implements OnInit {
     this.precioSugeridoTexto = precio == null ? '' : this.formatearMoneda(precio);
   }
 
+  formatearPrecio(valor: number | string | null | undefined): string {
+    if (valor === null || valor === undefined || valor === '') return '—';
+    const precio = Number(valor);
+    return Number.isFinite(precio) ? this.formatearMoneda(precio) : '—';
+  }
+
+  obtenerPrecioFinal(residuo: any): number | string | null {
+    return residuo.contraoferta_alcaldia ?? residuo.precio_sugerido_contribuyente;
+  }
+
   private formatearMoneda(valor: number): string {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',

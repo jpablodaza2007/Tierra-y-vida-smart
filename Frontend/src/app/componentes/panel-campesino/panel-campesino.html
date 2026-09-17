@@ -1,7 +1,8 @@
 <div class="campesino-page">
   <nav class="panel-navbar">
     <div class="navbar-brand">
-      <span class="green-text">Tierra y Vida</span> Smart
+      <img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">
+      <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
 
     <div class="navbar-actions">
@@ -70,9 +71,32 @@
           <h4>Armado paso a paso</h4><ol>@for (paso of diagnosticoCultivo.receta_compost.instrucciones_armado; track paso) { <li>{{ paso }}</li> }</ol>
           <h4>Recomendaciones inmediatas</h4><ul>@for (recomendacion of diagnosticoCultivo.recomendaciones_inmediatas; track recomendacion) { <li>{{ recomendacion }}</li> }</ul>
           <p><strong>Alerta de plagas:</strong> {{ diagnosticoCultivo.alerta_plagas }}</p>
-          <div class="actions"><button type="button" class="btn btn-outline" (click)="descargarReporteDiagnostico()">Descargar reporte PDF</button></div>
+          @if (diagnosticoCultivo.recomendacion?.archivo_pdf) {
+            <div class="actions"><button type="button" class="btn btn-outline" (click)="abrirReporte(diagnosticoCultivo.recomendacion)">Abrir informe PDF</button></div>
+          }
         </article>
       }
+
+      <div class="subsection ia-history">
+        <div class="section-heading">
+          <span class="eyebrow">Mis informes</span>
+          <h3>Últimas 5 recomendaciones de la IA</h3>
+          <p>Consulta y descarga los informes que la IA generó para tu cultivo.</p>
+        </div>
+        <div class="ia-history-grid">
+          @for (recomendacion of recomendacionesIa; track recomendacion.id_recomendacion) {
+            <article class="ia-history-card">
+              <span class="eyebrow">{{ recomendacion.cultivo || 'Cultivo' }}</span>
+              <h4>{{ recomendacion.titulo }}</h4>
+              <p>{{ recomendacion.resumen }}</p>
+              <time>{{ formatearFechaRecomendacion(recomendacion.fecha_generacion) }}</time>
+              <button type="button" class="btn btn-outline btn-small" [disabled]="!recomendacion.archivo_pdf" (click)="abrirReporte(recomendacion)">Ver PDF</button>
+            </article>
+          } @empty {
+            <p class="empty empty-card">Aún no tienes informes. Genera un diagnóstico para guardar el primero.</p>
+          }
+        </div>
+      </div>
     </section>
 
     <section id="solicitar-residuos" class="panel-section">
@@ -90,6 +114,18 @@
             <option value="HUMEDO">Residuo Húmedo</option>
           </select>
         </label>
+
+        @if (solicitudResiduo.tipo_residuo === 'HUMEDO') {
+          <label>Presencia de cítricos
+            <select [(ngModel)]="solicitudResiduo.presencia_citricos" name="presenciaCitricos" required>
+              <option value="">Selecciona una categoría</option>
+              <option value="Ninguna">Ninguna</option>
+              <option value="Baja">Baja</option>
+              <option value="Media">Nivel medio</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </label>
+        }
 
         <label>Cantidad (kg)
           <input type="number" min="0.01" step="0.01" [(ngModel)]="solicitudResiduo.cantidad_kg" name="cantidadKg" required>
@@ -124,6 +160,7 @@
                 <th>Residuo</th>
                 <th>Cantidad</th>
                 <th>Precio ofrecido</th>
+                <th>Precio final a pagar</th>
                 <th>Estado</th>
                 <th>Decision</th>
               </tr>
@@ -133,12 +170,13 @@
                 <tr>
                   <td>{{ solicitud.tipo_residuo }}</td>
                   <td>{{ solicitud.cantidad_solicitada || solicitud.cantidad_kg }} kg</td>
-                  <td>${{ solicitud.precio_ofrecido_campesino }}</td>
+                  <td>{{ formatearPrecio(solicitud.precio_ofrecido_campesino) }}</td>
+                  <td>{{ formatearPrecio(obtenerPrecioFinal(solicitud)) }}</td>
                   <td><span class="badge">{{ solicitud.estado }}</span></td>
                   <td>
                     @if (solicitud.estado === 'CONTRAOFERTA_ALCALDIA') {
                       <div class="counteroffer-banner">
-                        <strong>La alcaldia propone un precio de ajuste de: ${{ solicitud.contraoferta_alcaldia }}</strong>
+                        <strong>La alcaldia propone un precio de ajuste de: {{ formatearPrecio(solicitud.contraoferta_alcaldia) }}</strong>
                         <div class="actions">
                           <button type="button" class="btn btn-primary btn-small" (click)="responderContraofertaSolicitud(solicitud, 'aceptar')">Aceptar Precio</button>
                           <button type="button" class="btn btn-danger btn-small" (click)="responderContraofertaSolicitud(solicitud, 'rechazar')">Rechazar Solicitud</button>
@@ -151,7 +189,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="5" class="empty">Aun no tienes solicitudes de residuos.</td>
+                  <td colspan="6" class="empty">Aun no tienes solicitudes de residuos.</td>
                 </tr>
               }
             </tbody>
@@ -259,6 +297,7 @@
                 <th>Fecha deseada de recepción</th>
                 <th>Estado</th>
                 <th>Anotacion</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -274,10 +313,25 @@
                       <span class="muted">Sin observaciones</span>
                     }
                   </td>
+                  <td>
+                    @if (puedeConfirmarEntrega(solicitudSensor)) {
+                      <button type="button" class="btn btn-primary" (click)="confirmarEntregaSensor(solicitudSensor)">Confirmar que llegó</button>
+                    } @else if (solicitudSensor.fecha_recepcion_confirmada && solicitudSensor.sensor && !solicitudSensor.sensor.conectado_thingspeak) {
+                      <div class="form-grid">
+                        <input type="text" placeholder="ID de canal ThingSpeak" [(ngModel)]="solicitudConexion(solicitudSensor.id_solicitud_sensor).thingspeak_channel_id" [ngModelOptions]="{standalone: true}">
+                        <input type="password" placeholder="Read API Key (si es privado)" [(ngModel)]="solicitudConexion(solicitudSensor.id_solicitud_sensor).thingspeak_read_api_key" [ngModelOptions]="{standalone: true}">
+                        <button type="button" class="btn btn-primary" (click)="conectarSensorThingSpeak(solicitudSensor)">Conectar</button>
+                      </div>
+                    } @else if (solicitudSensor.sensor?.conectado_thingspeak) {
+                      <span class="success">Conectado a ThingSpeak</span>
+                    } @else {
+                      <span class="muted">Disponible el día de entrega programado</span>
+                    }
+                  </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="4" class="empty">Aún no tienes solicitudes de sensores.</td>
+                  <td colspan="5" class="empty">Aún no tienes solicitudes de sensores.</td>
                 </tr>
               }
             </tbody>

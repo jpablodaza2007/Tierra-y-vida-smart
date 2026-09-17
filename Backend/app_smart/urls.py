@@ -32,9 +32,11 @@ from .views import (
     SolicitudSensorAdminViewSet,
     SolicitudResiduoView,
     SolicitudSensorView,
-    VincularSensorView,
+    ConfirmarEntregaSensorView,
+    ConectarThingSpeakView,
     TelemetriaIoTView,
     DiagnosticoCultivoView,
+    RecomendacionIaHistorialView,
     UltimaLecturaThingSpeakView,
 )
 
@@ -66,7 +68,8 @@ urlpatterns = [
     path('residuos-disponibles/', ResiduoDisponibleView.as_view(), name='residuos_disponibles'),
     path('residuos/<int:id_residuo>/', ResiduoDetailView.as_view(), name='residuo_detalle'),
     path('solicitudes-sensor/', SolicitudSensorView.as_view(), name='solicitudes_sensor'),
-    path('solicitudes-sensor/<int:id_solicitud_sensor>/vincular/', VincularSensorView.as_view(), name='vincular_sensor'),
+    path('solicitudes-sensor/<int:id_solicitud_sensor>/confirmar-entrega/', ConfirmarEntregaSensorView.as_view(), name='confirmar_entrega_sensor'),
+    path('sensores/<int:id_sensor>/conectar-thingspeak/', ConectarThingSpeakView.as_view(), name='conectar_thingspeak'),
     path('solicitudes-residuo/', SolicitudResiduoView.as_view(), name='solicitudes_residuo'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/decision/', AuditoriaSolicitudResiduoDecisionView.as_view(), name='solicitudes_residuo_decision'),
     path('solicitudes-residuo/<int:id_solicitud_residuo>/responder-contraoferta/', RespuestaContraofertaSolicitudResiduoView.as_view(), name='solicitudes_residuo_responder_contraoferta'),
@@ -81,4 +84,5 @@ urlpatterns = [
     path('iot/simular-lectura/', SimularLecturaIoTView.as_view(), name='iot_simular_lectura'),
     path('iot/ultima-lectura-thingspeak/', UltimaLecturaThingSpeakView.as_view(), name='iot_ultima_lectura_thingspeak'),
     path('ia-diagnostico-cultivo/', DiagnosticoCultivoView.as_view(), name='ia_diagnostico_cultivo'),
+    path('ia-recomendaciones/', RecomendacionIaHistorialView.as_view(), name='ia_recomendaciones'),
 ] + router.urls

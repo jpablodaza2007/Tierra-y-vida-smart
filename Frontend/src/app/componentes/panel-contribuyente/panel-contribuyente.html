@@ -1,7 +1,8 @@
 <div class="contribuyente-page">
   <nav class="panel-navbar">
     <div class="navbar-brand">
-      <span class="green-text">Tierra y Vida</span> Smart
+      <img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">
+      <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
 
     <div class="navbar-actions">
@@ -135,6 +136,7 @@
               <th>Tipo</th>
               <th>Cantidad</th>
               <th>Precio sugerido</th>
+              <th>Precio final</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -144,7 +146,8 @@
               <tr>
                 <td>{{ residuo.tipo_residuo }}</td>
                 <td>{{ residuo.cantidad_kg }} kg</td>
-                <td>${{ residuo.precio_sugerido_contribuyente }}</td>
+                <td>{{ formatearPrecio(residuo.precio_sugerido_contribuyente) }}</td>
+                <td>{{ formatearPrecio(obtenerPrecioFinal(residuo)) }}</td>
                 <td>
                   <span class="badge">{{ residuo.estado }}</span>
                   @if (residuo.estado === 'Rechazado') {
@@ -170,7 +173,7 @@
                   </span>
 
                   <div *ngIf="residuo.estado === 'CONTRAOFERTA_ALCALDIA'" class="counteroffer-banner">
-                    <strong>La alcaldia propone un precio de ajuste de: ${{ residuo.contraoferta_alcaldia }}</strong>
+                    <strong>La alcaldia propone un precio de ajuste de: {{ formatearPrecio(residuo.contraoferta_alcaldia) }}</strong>
                     <div class="actions">
                       <button type="button" class="btn btn-primary btn-small" (click)="responderContraoferta(residuo, 'aceptar')">Aceptar</button>
                       <button type="button" class="btn btn-danger btn-small" (click)="responderContraoferta(residuo, 'rechazar')">Rechazar</button>
@@ -180,7 +183,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="5" class="empty">Aun no has registrado residuos.</td>
+                <td colspan="6" class="empty">Aun no has registrado residuos.</td>
               </tr>
             }
           </tbody>

@@ -98,6 +98,7 @@ class GestionLogistica(models.Model):
     id_residuo = models.OneToOneField('ResiduoOrganico', models.DO_NOTHING, db_column='id_residuo', blank=True, null=True)
     id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
     tipo_residuo = models.CharField(max_length=10, choices=INVENTARIO_TIPO_CHOICES, blank=True, null=True)
+    presencia_citricos = models.CharField(max_length=20, default='Ninguna')
     cantidad_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     fecha_asignacion = models.DateTimeField(blank=True, null=True)
     ubicacion_entrega = models.CharField(max_length=255, blank=True, null=True)
@@ -112,6 +113,7 @@ class SolicitudResiduo(models.Model):
     id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
     id_residuo = models.ForeignKey('ResiduoOrganico', models.DO_NOTHING, db_column='id_residuo', blank=True, null=True)
     tipo_residuo = models.CharField(max_length=20, choices=TIPO_RESIDUO_CHOICES, blank=True, null=True)
+    presencia_citricos = models.CharField(max_length=20, default='Ninguna')
     cantidad_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     cantidad_solicitada = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     precio_ofrecido_campesino = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
@@ -175,12 +177,18 @@ class LecturaSensor(models.Model):
 
 class RecomendacionIa(models.Model):
     id_recomendacion = models.AutoField(primary_key=True)
-    id_lectura = models.OneToOneField(LecturaSensor, models.DO_NOTHING, db_column='id_lectura', blank=True, null=True)
+    id_lectura = models.ForeignKey(LecturaSensor, models.DO_NOTHING, db_column='id_lectura', related_name='recomendaciones_ia', blank=True, null=True)
+    campesino = models.ForeignKey('Usuario', models.DO_NOTHING, db_column='id_campesino', related_name='recomendaciones_ia', null=True)
+    titulo = models.CharField(max_length=160)
     mensaje_ia = models.TextField(blank=True, null=True)
+    archivo_pdf = models.FileField(upload_to='recomendaciones_ia/%Y/%m/', blank=True, null=True)
+    datos_entrada = models.JSONField(default=dict)
+    fecha_generacion = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
         managed = True
         db_table = 'recomendacion_ia'
+        ordering = ['-fecha_generacion']
 
 
 class ResiduoOrganico(models.Model):
@@ -216,10 +224,20 @@ class Sensor(models.Model):
     id_campesino = models.ForeignKey(Campesino, models.DO_NOTHING, db_column='id_campesino', blank=True, null=True)
     tipo_sensor = models.CharField(max_length=50, blank=True, null=True)
     id_solicitud_sensor = models.OneToOneField('SolicitudSensor', models.DO_NOTHING, db_column='id_solicitud_sensor', blank=True, null=True)
+    thingspeak_channel_id = models.CharField(max_length=50, blank=True, null=True)
+    thingspeak_read_api_key = models.CharField(max_length=100, blank=True, null=True)
+    fecha_conexion_thingspeak = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = True
         db_table = 'sensor'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['thingspeak_channel_id'],
+                condition=models.Q(thingspeak_channel_id__isnull=False) & ~models.Q(thingspeak_channel_id=''),
+                name='sensor_thingspeak_channel_unico',
+            ),
+        ]
 
 
 class SolicitudSensor(models.Model):
@@ -229,6 +247,7 @@ class SolicitudSensor(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_DICTAMEN_CHOICES, default='PENDIENTE')
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
     fecha_entrega_deseada = models.DateField()
+    fecha_recepcion_confirmada = models.DateTimeField(blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
 
     class Meta:

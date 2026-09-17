@@ -1,7 +1,8 @@
 <div class="alcaldia-page">
   <nav class="panel-navbar">
     <div class="navbar-brand">
-      <span class="green-text">Tierra y Vida</span> Smart
+      <img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">
+      <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
 
     <div class="navbar-actions">
@@ -34,6 +35,18 @@
             <option [ngValue]="'HUMEDO'">HUMEDO</option>
           </select>
         </label>
+
+        @if (formAsignacion.tipo_residuo === 'HUMEDO') {
+          <label>Presencia de cítricos
+            <select [(ngModel)]="formAsignacion.presencia_citricos" name="presencia_citricos" required>
+              <option value="">Selecciona una categoría</option>
+              <option value="Ninguna">Ninguna</option>
+              <option value="Baja">Baja</option>
+              <option value="Media">Nivel medio</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </label>
+        }
 
         <label>Cantidad (kg)
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formAsignacion.cantidad_kg" name="cantidad_kg" required>
@@ -120,6 +133,7 @@
               <th>Contribuyente</th>
               <th>Residuo</th>
               <th>Precio propuesto</th>
+              <th>Precio final</th>
               <th>Ubicacion</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -130,7 +144,8 @@
               <tr>
                 <td>{{ residuo.contribuyente_nombre || 'Contribuyente' }}</td>
                 <td>{{ residuo.tipo_residuo }} &middot; {{ residuo.cantidad_kg }} kg</td>
-                <td>${{ residuo.precio_sugerido_contribuyente }}</td>
+                <td>{{ formatearPrecio(residuo.precio_sugerido_contribuyente) }}</td>
+                <td>{{ formatearPrecio(obtenerPrecioFinal(residuo, 'precio_sugerido_contribuyente')) }}</td>
                 <td>{{ residuo.ubicacion }}</td>
                 <td><span class="badge">{{ residuo.estado }}</span></td>
                 <td class="actions">
@@ -147,7 +162,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="empty">No hay residuos pendientes de auditoria.</td>
+                <td colspan="7" class="empty">No hay residuos pendientes de auditoria.</td>
               </tr>
             }
           </tbody>
@@ -200,6 +215,7 @@
               <th>Campesino</th>
               <th>Residuo</th>
               <th>Precio propuesto</th>
+              <th>Precio final</th>
               <th>Ubicacion</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -210,7 +226,8 @@
               <tr>
                 <td>{{ solicitud.campesino_nombre }}</td>
                 <td>{{ solicitud.tipo_residuo }} &middot; {{ solicitud.cantidad_kg }} kg</td>
-                <td>${{ solicitud.precio_ofrecido_campesino }}</td>
+                <td>{{ formatearPrecio(solicitud.precio_ofrecido_campesino) }}</td>
+                <td>{{ formatearPrecio(obtenerPrecioFinal(solicitud, 'precio_ofrecido_campesino')) }}</td>
                 <td>{{ solicitud.ubicacion }}</td>
                 <td>{{ solicitud.estado }}</td>
                 <td class="actions">
@@ -227,7 +244,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="empty">No hay solicitudes de residuos pendientes.</td>
+                <td colspan="7" class="empty">No hay solicitudes de residuos pendientes.</td>
               </tr>
             }
           </tbody>

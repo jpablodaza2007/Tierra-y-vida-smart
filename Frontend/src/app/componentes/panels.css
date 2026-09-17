@@ -23,10 +23,22 @@
 }
 
 .navbar-brand {
+  align-items: center;
+  display: flex;
   font-size: 1rem;
   font-weight: 800;
+  gap: 8px;
   letter-spacing: 0.04em;
   color: white;
+}
+
+.navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 36px;
+  object-fit: cover;
+  width: 36px;
 }
 
 .green-text {
@@ -1253,11 +1265,54 @@ tr:hover {
 }
 
 .alcaldia-page .navbar-brand {
+  align-items: center;
+  display: flex;
   flex: 0 0 auto;
   font-size: 1.4rem;
   font-weight: 700;
+  gap: 10px;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.campesino-page .ia-history {
+  border-top: 1px solid #e5ece6;
+  padding-top: 24px;
+}
+
+.campesino-page .ia-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.campesino-page .ia-history-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #cfe5d5;
+  border-top: 4px solid #2ecc71;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ffffff, #f3fbf5);
+}
+
+.campesino-page .ia-history-card h4,
+.campesino-page .ia-history-card p,
+.campesino-page .ia-history-card time {
+  margin: 0;
+}
+
+.campesino-page .ia-history-card h4 { color: #0f172a; }
+.campesino-page .ia-history-card time { color: #64748b; font-size: .82rem; }
+.campesino-page .ia-history-card .btn { justify-self: start; margin-top: 4px; }
+
+.alcaldia-page .navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 42px;
+  object-fit: cover;
+  width: 42px;
 }
 
 .alcaldia-page .navbar-actions {
