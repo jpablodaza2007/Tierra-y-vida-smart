@@ -7,9 +7,10 @@ import { AdminService, EstadoDictamen, RegistroAdmin } from '../../services/admi
 
 @Component({ selector: 'app-admin-contribuyentes', standalone: true, imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive], templateUrl: './admin-contribuyentes.component.html', styleUrl: '../admin-dashboard/admin-dashboard.component.css' })
 export class AdminContribuyentesComponent implements OnInit {
-  contribuyentes: RegistroAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = '';
+  contribuyentes: RegistroAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = ''; menuAbierto = false;
   constructor(public auth: AuthService, private adminService: AdminService, private cdr: ChangeDetectorRef) {}
   ngOnInit(): void { this.cargarDatos(); }
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
   cargarDatos(): void { this.mensajeError = ''; this.adminService.listarContribuyentes().subscribe({ next: datos => { this.contribuyentes = datos; this.cdr.detectChanges(); }, error: () => { this.mensajeError = 'No se pudieron cargar los contribuyentes.'; this.cdr.detectChanges(); } }); }
   dictaminar(id: number, estado: EstadoDictamen): void { this.adminService.dictaminarContribuyente(id, estado).subscribe({ next: () => { this.mensajeExito = `Contribuyente ${estado === 'ACEPTADO' ? 'aceptado' : 'rechazado'} correctamente.`; this.cargarDatos(); }, error: () => this.mensajeError = 'No se pudo dictaminar el contribuyente.' }); }
   verComprobante(item: RegistroAdmin): void {

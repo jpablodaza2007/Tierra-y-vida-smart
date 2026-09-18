@@ -4,10 +4,11 @@
       <img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">
       <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
-    <div class="nav-links">
-      <button type="button" class="nav-section-link" (click)="scrollToSection('inicio')">Inicio</button>
-      <button type="button" class="nav-section-link" (click)="scrollToSection('funciones')">Funciones</button>
-      <button type="button" class="nav-section-link" (click)="scrollToSection('ruta')">Nuestra Ruta</button>
+    <button type="button" class="navbar-toggle" (click)="alternarMenu()" [attr.aria-expanded]="menuAbierto" aria-controls="menu-inicio">{{ menuAbierto ? 'Cerrar menú' : 'Menú' }}</button>
+    <div id="menu-inicio" class="nav-links" [class.menu-open]="menuAbierto">
+      <button type="button" class="nav-section-link" (click)="scrollToSection('inicio'); cerrarMenu()">Inicio</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('funciones'); cerrarMenu()">Funciones</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('ruta'); cerrarMenu()">Nuestra Ruta</button>
       <a routerLink="/registro" class="btn-crear-cuenta">Crear Cuenta</a>
       <button class="btn-nav" routerLink="/login">Iniciar Sesión</button>
     </div>

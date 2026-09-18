@@ -20,6 +20,7 @@ export class PanelContribuyenteComponent implements OnInit {
   editandoId: number | null = null;
   mensajeError = '';
   seccionActual: 'registro' | 'materiales' | 'residuos' = 'registro';
+  menuAbierto = false;
   formulario = this.nuevoFormulario();
   precioSugeridoTexto = '';
   pdfUrlSegura: SafeResourceUrl = '';
@@ -37,6 +38,14 @@ export class PanelContribuyenteComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.obtenerUbicacionActual();
+  }
+
+  alternarMenu(): void {
+    this.menuAbierto = !this.menuAbierto;
+  }
+
+  cerrarMenu(): void {
+    this.menuAbierto = false;
   }
 
   nuevoFormulario() {

@@ -5,11 +5,12 @@
       <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
 
-    <div class="navbar-actions">
-      <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-residuos">Solicitar Residuos</a>
-      <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-sensores">Solicitar Sensores</a>
+    <button type="button" class="navbar-toggle" (click)="alternarMenu()" [attr.aria-expanded]="menuAbierto" aria-controls="menu-campesino">{{ menuAbierto ? 'Cerrar menú' : 'Menú' }}</button>
+    <div id="menu-campesino" class="navbar-actions" [class.menu-open]="menuAbierto">
+      <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-residuos" (click)="cerrarMenu()">Solicitar Residuos</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="solicitar-sensores" (click)="cerrarMenu()">Solicitar Sensores</a>
       <a class="nav-section-link" [routerLink]="[]" fragment="ia-agronoma">IA Agrónoma</a>
-      <a class="nav-section-link" [routerLink]="[]" fragment="material-aprendizaje">Material de Aprendizaje</a>
+      <a class="nav-section-link" [routerLink]="[]" fragment="material-aprendizaje" (click)="cerrarMenu()">Material de Aprendizaje</a>
       <button class="btn-nav" type="button" (click)="auth.cerrarSesion()">Cerrar Sesión</button>
     </div>
   </nav>

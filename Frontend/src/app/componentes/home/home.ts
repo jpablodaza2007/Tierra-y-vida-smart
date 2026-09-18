@@ -10,7 +10,11 @@ import { Router, RouterLink } from '@angular/router';
   styleUrl: './home.css'
 })
 export class HomeComponent {
+  menuAbierto = false;
   constructor(private router: Router) {}
+
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
+  cerrarMenu(): void { this.menuAbierto = false; }
 
   scrollToSection(sectionId: string): void {
     this.router.navigate([], { fragment: sectionId });

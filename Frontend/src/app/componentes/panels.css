@@ -1083,6 +1083,10 @@ tr:hover {
   transform: none;
 }
 
+.contribuyente-page .navbar-toggle {
+  display: none;
+}
+
 .contribuyente-page .dashboard {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
@@ -1224,12 +1228,38 @@ tr:hover {
 
 @media (max-width: 640px) {
   .contribuyente-page .panel-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     padding: 14px 18px;
   }
 
+  .contribuyente-page .navbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 12px;
+    color: #ffffff;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   .contribuyente-page .navbar-actions {
+    display: none;
+    grid-column: 1 / -1;
     width: 100%;
+    margin-top: 4px;
     gap: 12px;
+  }
+
+  .contribuyente-page .navbar-actions.menu-open {
+    display: flex;
+    flex-direction: column;
   }
 
   .contribuyente-page .nav-section-link,
@@ -1485,6 +1515,51 @@ tr:hover {
 
   .alcaldia-page .panel-section {
     padding: 20px;
+  }
+}
+
+/* Menús plegables de Campesino y Alcaldía para pantallas pequeñas. */
+.campesino-page .navbar-toggle,
+.alcaldia-page .navbar-toggle {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .campesino-page .panel-navbar,
+  .alcaldia-page .panel-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .campesino-page .navbar-toggle,
+  .alcaldia-page .navbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 12px;
+    color: #ffffff;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .campesino-page .navbar-actions,
+  .alcaldia-page .navbar-actions {
+    display: none;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .campesino-page .navbar-actions.menu-open,
+  .alcaldia-page .navbar-actions.menu-open {
+    display: flex;
+    flex-direction: column;
   }
 }
 

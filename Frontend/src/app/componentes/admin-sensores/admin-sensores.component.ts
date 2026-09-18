@@ -7,9 +7,10 @@ import { AdminService, EstadoDictamen, SolicitudSensorAdmin } from '../../servic
 
 @Component({ selector: 'app-admin-sensores', standalone: true, imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive], templateUrl: './admin-sensores.component.html', styleUrl: '../admin-dashboard/admin-dashboard.component.css' })
 export class AdminSensoresComponent implements OnInit {
-  solicitudesSensores: SolicitudSensorAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = '';
+  solicitudesSensores: SolicitudSensorAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = ''; menuAbierto = false;
   constructor(public auth: AuthService, private adminService: AdminService, private cdr: ChangeDetectorRef) {}
   ngOnInit(): void { this.cargarDatos(); }
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
   cargarDatos(): void { this.mensajeError = ''; this.adminService.listarSolicitudesSensores().subscribe({ next: datos => { this.solicitudesSensores = datos; this.cdr.detectChanges(); }, error: () => { this.mensajeError = 'No se pudieron cargar las solicitudes de sensores.'; this.cdr.detectChanges(); } }); }
   dictaminar(id: number, estado: EstadoDictamen): void { let motivo_rechazo = ''; if (estado === 'RECHAZADO') { const respuesta = window.prompt('Escribe el motivo del rechazo para el campesino:'); if (respuesta === null) return; motivo_rechazo = respuesta.trim(); } this.adminService.dictaminarSolicitudSensor(id, estado, motivo_rechazo).subscribe({ next: () => { this.mensajeExito = `Solicitud de sensor ${estado === 'ACEPTADO' ? 'aceptada' : 'rechazada'} correctamente.`; this.cargarDatos(); }, error: () => this.mensajeError = 'No se pudo dictaminar la solicitud de sensor.' }); }
   actualizarEntrega(id: number, estado: 'EN_CAMINO' | 'ENTREGADO'): void { this.adminService.actualizarEntregaSensor(id, estado).subscribe({ next: () => { this.mensajeExito = `Sensor marcado como ${estado.replace('_', ' ').toLowerCase()}.`; this.cargarDatos(); }, error: () => this.mensajeError = 'No se pudo actualizar la entrega del sensor.' }); }

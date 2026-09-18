@@ -15,6 +15,7 @@ import { timeout } from 'rxjs';
 })
 export class PanelCampesinoComponent implements OnInit {
   usuario;
+  menuAbierto = false;
   residuosDisponibles: any[] = [];
   readonly tiposSensoresDisponibles = ['Temperatura', 'pH', 'Humedad'];
   mensajeError = '';
@@ -63,6 +64,9 @@ export class PanelCampesinoComponent implements OnInit {
     this.obtenerUbicacionResiduo();
     this.cargarLecturaThingSpeak();
   }
+
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
+  cerrarMenu(): void { this.menuAbierto = false; }
 
   cambiarSeccion(seccion: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo'): void {
     this.seccionActual = seccion;

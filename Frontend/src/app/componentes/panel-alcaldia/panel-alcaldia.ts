@@ -15,6 +15,7 @@ import { CrudService } from '../../services/crud';
 })
 export class PanelAlcaldiaComponent implements OnInit {
   usuario;
+  menuAbierto = false;
   gestiones: any[] = [];
   inventario: any[] = [];
   campesinos: any[] = [];
@@ -42,6 +43,9 @@ export class PanelAlcaldiaComponent implements OnInit {
     this.cargar();
     this.cargarCampesinos();
   }
+
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
+  cerrarMenu(): void { this.menuAbierto = false; }
 
   nuevoFormulario() {
     return {
