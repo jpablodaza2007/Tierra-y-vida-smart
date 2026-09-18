@@ -71,7 +71,7 @@
           <h4>Armado paso a paso</h4><ol>@for (paso of diagnosticoCultivo.receta_compost.instrucciones_armado; track paso) { <li>{{ paso }}</li> }</ol>
           <h4>Recomendaciones inmediatas</h4><ul>@for (recomendacion of diagnosticoCultivo.recomendaciones_inmediatas; track recomendacion) { <li>{{ recomendacion }}</li> }</ul>
           <p><strong>Alerta de plagas:</strong> {{ diagnosticoCultivo.alerta_plagas }}</p>
-          @if (diagnosticoCultivo.recomendacion?.archivo_pdf) {
+          @if (diagnosticoCultivo.recomendacion?.tiene_pdf) {
             <div class="actions"><button type="button" class="btn btn-outline" (click)="abrirReporte(diagnosticoCultivo.recomendacion)">Abrir informe PDF</button></div>
           }
         </article>
@@ -90,7 +90,7 @@
               <h4>{{ recomendacion.titulo }}</h4>
               <p>{{ recomendacion.resumen }}</p>
               <time>{{ formatearFechaRecomendacion(recomendacion.fecha_generacion) }}</time>
-              <button type="button" class="btn btn-outline btn-small" [disabled]="!recomendacion.archivo_pdf" (click)="abrirReporte(recomendacion)">Ver PDF</button>
+              <button type="button" class="btn btn-outline btn-small" [disabled]="!recomendacion.tiene_pdf" (click)="abrirReporte(recomendacion)">Ver PDF</button>
             </article>
           } @empty {
             <p class="empty empty-card">Aún no tienes informes. Genera un diagnóstico para guardar el primero.</p>

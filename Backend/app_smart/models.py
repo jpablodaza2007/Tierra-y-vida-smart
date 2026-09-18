@@ -182,6 +182,7 @@ class RecomendacionIa(models.Model):
     titulo = models.CharField(max_length=160)
     mensaje_ia = models.TextField(blank=True, null=True)
     archivo_pdf = models.FileField(upload_to='recomendaciones_ia/%Y/%m/', blank=True, null=True)
+    contenido_pdf = models.BinaryField(blank=True, null=True, editable=False)
     datos_entrada = models.JSONField(default=dict)
     fecha_generacion = models.DateTimeField(auto_now_add=True, null=True)
 

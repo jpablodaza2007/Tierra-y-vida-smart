@@ -251,7 +251,7 @@ export class PanelCampesinoComponent implements OnInit {
       },
       error: () => {
         ventanaReporte.close();
-        this.mensajeDiagnostico = 'No fue posible abrir el informe PDF. Inténtalo nuevamente.';
+        this.mensajeDiagnostico = 'No fue posible abrir el informe PDF. Si fue creado antes de la actualización, genera uno nuevo para guardarlo de forma segura.';
         this.tipoMensajeDiagnostico = 'error';
         this.cdr.detectChanges();
       },

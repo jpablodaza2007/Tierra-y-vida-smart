@@ -1,9 +1,9 @@
 import logging
 import random
 from decimal import Decimal
+from io import BytesIO
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
 from django.http import FileResponse
 from django.core import signing
 from django.core.exceptions import ValidationError
@@ -147,16 +147,16 @@ class DiagnosticoCultivoView(APIView):
             id_lectura=lectura,
             titulo=titulo,
             mensaje_ia=resultado.get('diagnostico_general', ''),
+            contenido_pdf=contenido_pdf,
             datos_entrada=datos,
         )
-        nombre_archivo = f"diagnostico-{perfil.id_usuario}-{timezone.now():%Y%m%d-%H%M%S}.pdf"
-        recomendacion.archivo_pdf.save(nombre_archivo, ContentFile(contenido_pdf), save=False)
         recomendacion.save()
         resultado['recomendacion'] = {
             'id_recomendacion': recomendacion.id_recomendacion,
             'titulo': recomendacion.titulo,
             'fecha_generacion': recomendacion.fecha_generacion,
-            'archivo_pdf': recomendacion.archivo_pdf.url,
+            'archivo_pdf': None,
+            'tiene_pdf': True,
         }
         return Response(resultado, status=status.HTTP_200_OK)
 
@@ -172,7 +172,7 @@ class RecomendacionIaHistorialView(APIView):
             return Response({'error': 'Solo los campesinos pueden consultar su historial de recomendaciones.'}, status=status.HTTP_403_FORBIDDEN)
 
         recomendaciones = RecomendacionIa.objects.filter(campesino=perfil).only(
-            'id_recomendacion', 'titulo', 'mensaje_ia', 'archivo_pdf', 'fecha_generacion', 'datos_entrada'
+            'id_recomendacion', 'titulo', 'mensaje_ia', 'archivo_pdf', 'contenido_pdf', 'fecha_generacion', 'datos_entrada'
         )[:5]
         return Response([
             {
@@ -182,6 +182,7 @@ class RecomendacionIaHistorialView(APIView):
                 'cultivo': recomendacion.datos_entrada.get('tipo_cultivo', ''),
                 'fecha_generacion': recomendacion.fecha_generacion,
                 'archivo_pdf': recomendacion.archivo_pdf.url if recomendacion.archivo_pdf else None,
+                'tiene_pdf': bool(recomendacion.contenido_pdf or recomendacion.archivo_pdf),
             }
             for recomendacion in recomendaciones
         ])
@@ -204,15 +205,24 @@ class ReporteRecomendacionIaView(APIView):
             id_recomendacion=id_recomendacion,
             campesino=perfil,
         ).first()
-        if recomendacion is None or not recomendacion.archivo_pdf:
+        if recomendacion is None or not (recomendacion.contenido_pdf or recomendacion.archivo_pdf):
             return Response({'error': 'No se encontró el informe solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre_archivo = f"diagnostico-{recomendacion.id_recomendacion}.pdf"
+        if recomendacion.contenido_pdf:
+            return FileResponse(
+                BytesIO(recomendacion.contenido_pdf),
+                content_type='application/pdf',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
 
         try:
             return FileResponse(
                 recomendacion.archivo_pdf.open('rb'),
                 content_type='application/pdf',
                 as_attachment=False,
-                filename=recomendacion.archivo_pdf.name.rsplit('/', 1)[-1],
+                filename=recomendacion.archivo_pdf.name.rsplit('/', 1)[-1] or nombre_archivo,
             )
         except FileNotFoundError:
             return Response({'error': 'El archivo del informe no está disponible.'}, status=status.HTTP_404_NOT_FOUND)
