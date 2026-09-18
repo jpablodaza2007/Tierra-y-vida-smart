@@ -129,6 +129,12 @@ export class CrudService {
     return this.http.get<any[]>(`${this.API_URL}ia-recomendaciones/`);
   }
 
+  obtenerReporteIa(idRecomendacion: number): Observable<Blob> {
+    return this.http.get(`${this.API_URL}ia-recomendaciones/${idRecomendacion}/pdf/`, {
+      responseType: 'blob',
+    });
+  }
+
   obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null }> {
     return this.http.get<{ temperatura: number | null; humedad_ambiente: number | null }>(
       `${this.API_URL}iot/ultima-lectura-thingspeak/`

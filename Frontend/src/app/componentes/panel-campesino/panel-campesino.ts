@@ -227,7 +227,35 @@ export class PanelCampesinoComponent implements OnInit {
   }
 
   abrirReporte(recomendacion: any): void {
-    if (recomendacion?.archivo_pdf) window.open(recomendacion.archivo_pdf, '_blank', 'noopener');
+    if (!recomendacion?.id_recomendacion) {
+      this.mensajeDiagnostico = 'El informe seleccionado no está disponible.';
+      this.tipoMensajeDiagnostico = 'error';
+      return;
+    }
+
+    // Abrir la pestaña durante el clic evita que el navegador bloquee el PDF.
+    const ventanaReporte = window.open('', '_blank');
+    if (!ventanaReporte) {
+      this.mensajeDiagnostico = 'El navegador bloqueó la ventana del informe. Permite las ventanas emergentes e inténtalo de nuevo.';
+      this.tipoMensajeDiagnostico = 'error';
+      return;
+    }
+    ventanaReporte.document.title = 'Generando informe…';
+    ventanaReporte.document.body.innerHTML = '<p style="font-family:sans-serif;padding:2rem">Generando informe PDF…</p>';
+
+    this.crud.obtenerReporteIa(recomendacion.id_recomendacion).subscribe({
+      next: (pdf) => {
+        const urlPdf = URL.createObjectURL(pdf);
+        ventanaReporte.location.replace(urlPdf);
+        window.setTimeout(() => URL.revokeObjectURL(urlPdf), 60_000);
+      },
+      error: () => {
+        ventanaReporte.close();
+        this.mensajeDiagnostico = 'No fue posible abrir el informe PDF. Inténtalo nuevamente.';
+        this.tipoMensajeDiagnostico = 'error';
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   formatearFechaRecomendacion(fecha: string | null | undefined): string {

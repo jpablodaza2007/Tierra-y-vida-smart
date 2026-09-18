@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
+from django.http import FileResponse
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -184,6 +185,37 @@ class RecomendacionIaHistorialView(APIView):
             }
             for recomendacion in recomendaciones
         ])
+
+
+class ReporteRecomendacionIaView(APIView):
+    """Entrega el PDF únicamente al campesino dueño del diagnóstico."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id_recomendacion):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response(
+                {'error': 'Solo los campesinos pueden consultar sus informes.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        recomendacion = RecomendacionIa.objects.filter(
+            id_recomendacion=id_recomendacion,
+            campesino=perfil,
+        ).first()
+        if recomendacion is None or not recomendacion.archivo_pdf:
+            return Response({'error': 'No se encontró el informe solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            return FileResponse(
+                recomendacion.archivo_pdf.open('rb'),
+                content_type='application/pdf',
+                as_attachment=False,
+                filename=recomendacion.archivo_pdf.name.rsplit('/', 1)[-1],
+            )
+        except FileNotFoundError:
+            return Response({'error': 'El archivo del informe no está disponible.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class UltimaLecturaThingSpeakView(APIView):
