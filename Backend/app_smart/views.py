@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import random
 from decimal import Decimal
 from io import BytesIO
@@ -1310,6 +1311,25 @@ class RegistroAdminViewSet(viewsets.ReadOnlyModelViewSet):
             .exclude(comprobante_registro__isnull=True)
             .order_by('-id_usuario')
         )
+
+    @action(detail=True, methods=['get'])
+    def comprobante(self, request, pk=None):
+        """Entrega el comprobante solo a administradores autenticados."""
+        perfil = self.get_object()
+        if not perfil.comprobante_registro:
+            return Response({'error': 'No se encontró el comprobante solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre_archivo = perfil.comprobante_registro.name.rsplit('/', 1)[-1] or f'comprobante-{perfil.id_usuario}'
+        tipo_contenido, _ = mimetypes.guess_type(nombre_archivo)
+        try:
+            return FileResponse(
+                perfil.comprobante_registro.open('rb'),
+                content_type=tipo_contenido or 'application/octet-stream',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
+        except FileNotFoundError:
+            return Response({'error': 'El archivo del comprobante no está disponible.'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['patch'])
     def dictaminar(self, request, pk=None):

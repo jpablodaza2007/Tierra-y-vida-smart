@@ -54,6 +54,12 @@ export class AdminService {
     return this.http.patch<RegistroAdmin>(`${this.API_URL}alcaldias/${id}/dictaminar/`, { estado });
   }
 
+  obtenerComprobanteContribuyente(id: number): Observable<Blob> {
+    return this.http.get(`${this.API_URL}contribuyentes/${id}/comprobante/`, {
+      responseType: 'blob',
+    });
+  }
+
   dictaminarSolicitudSensor(id: number, estado: EstadoDictamen, motivo_rechazo = ''): Observable<SolicitudSensorAdmin> {
     return this.http.patch<SolicitudSensorAdmin>(`${this.API_URL}solicitudes-sensores/${id}/dictaminar/`, {
       estado,

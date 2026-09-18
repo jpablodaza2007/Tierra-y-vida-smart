@@ -177,6 +177,14 @@
   box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.1);
 }
 
+/* La ubicación la completa el GPS; se muestra como un campo no editable. */
+.form-grid .location-input-disabled {
+  background: #e5e7eb;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
 .form-grid textarea {
   min-height: 92px;
   resize: vertical;
