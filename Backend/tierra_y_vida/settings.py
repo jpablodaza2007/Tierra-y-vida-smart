@@ -151,7 +151,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Las fechas de entrega se comparan con el día local del campesino. Mantener
+# esta zona alineada con Colombia evita que el frontend y el servidor difieran
+# durante las horas cercanas a la medianoche.
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 

@@ -137,7 +137,7 @@
         </label>
 
         <label>Ubicación actual (GPS)
-          <input [value]="solicitudResiduo.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly>
+          <input class="location-input-disabled" [value]="solicitudResiduo.ubicacion || 'Pendiente de obtener ubicación'" name="ubicacion" readonly aria-disabled="true">
         </label>
 
         <div class="actions">
