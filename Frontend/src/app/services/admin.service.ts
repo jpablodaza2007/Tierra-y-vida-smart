@@ -60,6 +60,12 @@ export class AdminService {
     });
   }
 
+  obtenerComprobanteAlcaldia(id: number): Observable<Blob> {
+    return this.http.get(`${this.API_URL}alcaldias/${id}/comprobante/`, {
+      responseType: 'blob',
+    });
+  }
+
   dictaminarSolicitudSensor(id: number, estado: EstadoDictamen, motivo_rechazo = ''): Observable<SolicitudSensorAdmin> {
     return this.http.patch<SolicitudSensorAdmin>(`${this.API_URL}solicitudes-sensores/${id}/dictaminar/`, {
       estado,
