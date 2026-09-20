@@ -12,6 +12,7 @@ from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db import DatabaseError
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.http import urlencode
@@ -621,11 +622,13 @@ class RegistroUsuarioView(APIView):
                 )
 
                 estado_cuenta = 'PENDIENTE' if requiere_comprobante else 'pendiente_activacion'
+                contenido_comprobante = comprobante.read() if comprobante else None
                 nuevo_usuario = Usuario.objects.create(
                     nombre=nombre_completo,
                     correo=email,
                     tipo_usuario=tipo_rol,
-                    comprobante_registro=comprobante,
+                    comprobante_contenido=contenido_comprobante,
+                    comprobante_nombre=(comprobante.name or '')[:255] if comprobante else '',
                     estado_cuenta=estado_cuenta,
                 )
                 crear_perfil_rol(nuevo_usuario)
@@ -633,7 +636,7 @@ class RegistroUsuarioView(APIView):
                 try:
                     comprobante_url = None
                     if comprobante:
-                        comprobante_url = f"{request.build_absolute_uri('/')}{nuevo_usuario.comprobante_registro.url}" if nuevo_usuario.comprobante_registro else None
+                        comprobante_url = 'Disponible en el panel de administración.'
 
                     destinatario_correo = (
                         settings.ADMIN_NOTIFICATION_EMAIL
@@ -1307,8 +1310,10 @@ class RegistroAdminViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Usuario.objects
             .filter(tipo_usuario__iexact=self.rol)
-            .exclude(comprobante_registro='')
-            .exclude(comprobante_registro__isnull=True)
+            .filter(
+                Q(comprobante_contenido__isnull=False)
+                | (Q(comprobante_registro__isnull=False) & ~Q(comprobante_registro=''))
+            )
             .order_by('-id_usuario')
         )
 
@@ -1316,11 +1321,22 @@ class RegistroAdminViewSet(viewsets.ReadOnlyModelViewSet):
     def comprobante(self, request, pk=None):
         """Entrega el comprobante solo a administradores autenticados."""
         perfil = self.get_object()
-        if not perfil.comprobante_registro:
+        if not (perfil.comprobante_contenido or perfil.comprobante_registro):
             return Response({'error': 'No se encontró el comprobante solicitado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        nombre_archivo = perfil.comprobante_registro.name.rsplit('/', 1)[-1] or f'comprobante-{perfil.id_usuario}'
+        nombre_archivo = (
+            perfil.comprobante_nombre
+            or (perfil.comprobante_registro.name.rsplit('/', 1)[-1] if perfil.comprobante_registro else '')
+            or f'comprobante-{perfil.id_usuario}'
+        )
         tipo_contenido, _ = mimetypes.guess_type(nombre_archivo)
+        if perfil.comprobante_contenido:
+            return FileResponse(
+                BytesIO(bytes(perfil.comprobante_contenido)),
+                content_type=tipo_contenido or 'application/octet-stream',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
         try:
             return FileResponse(
                 perfil.comprobante_registro.open('rb'),

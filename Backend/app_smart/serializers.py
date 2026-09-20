@@ -282,8 +282,10 @@ class RegistroAdminSerializer(serializers.ModelSerializer):
         return estados.get(obj.estado_cuenta, obj.estado_cuenta or 'PENDIENTE')
 
     def get_comprobante_url(self, obj):
-        if not obj.comprobante_registro:
+        if not (obj.comprobante_contenido or obj.comprobante_registro):
             return ''
+        if obj.comprobante_contenido:
+            return 'Disponible en el panel de administración.'
         request = self.context.get('request')
         url = obj.comprobante_registro.url
         return request.build_absolute_uri(url) if request else url

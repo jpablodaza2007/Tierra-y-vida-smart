@@ -150,7 +150,20 @@ class AutenticacionYRegistroTests(APITestCase):
         self.assertFalse(usuario_django.is_active)
         perfil = Usuario.objects.get(correo='alcaldia@example.com')
         self.assertEqual(perfil.estado_cuenta, 'pendiente_aprobacion')
-        self.assertTrue(bool(perfil.comprobante_registro))
+        self.assertEqual(bytes(perfil.comprobante_contenido), b'%PDF-1.4\n')
+        self.assertEqual(perfil.comprobante_nombre, 'comprobante.pdf')
+
+        administrador = User.objects.create_user(
+            username='admin_comprobantes', password='UnaClaveSegura123', is_staff=True,
+        )
+        self.client.force_authenticate(administrador)
+        listado = self.client.get(reverse('admin-alcaldias-list'))
+        archivo = self.client.get(reverse('admin-alcaldias-comprobante', args=[perfil.pk]))
+
+        self.assertEqual(listado.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item['id'] == perfil.pk for item in listado.data))
+        self.assertEqual(archivo.status_code, status.HTTP_200_OK)
+        self.assertEqual(b''.join(archivo.streaming_content), b'%PDF-1.4\n')
 
 
 class CrudPorRolTests(APITestCase):

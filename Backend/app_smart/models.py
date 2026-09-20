@@ -266,6 +266,11 @@ class Usuario(models.Model):
         blank=True,
         null=True,
     )
+    # Se conserva comprobante_registro para poder leer archivos antiguos. Los
+    # comprobantes nuevos se almacenan en PostgreSQL, que sí es persistente en
+    # el despliegue.
+    comprobante_contenido = models.BinaryField(blank=True, null=True, editable=False)
+    comprobante_nombre = models.CharField(max_length=255, blank=True, default='')
     estado_cuenta = models.CharField(
         max_length=30,
         choices=ESTADO_DICTAMEN_CHOICES,
