@@ -1,7 +1,8 @@
 <main class="admin-page">
   <nav class="admin-navbar">
-    <div class="navbar-brand">Tierra y Vida <span>Smart</span></div>
-    <div class="navbar-actions">
+    <div class="navbar-brand"><img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">Tierra y Vida <span>Smart</span></div>
+    <button type="button" class="navbar-toggle" (click)="alternarMenu()" [attr.aria-expanded]="menuAbierto" aria-controls="menu-admin">{{ menuAbierto ? 'Cerrar menú' : 'Menú' }}</button>
+    <div id="menu-admin" class="navbar-actions" [class.menu-open]="menuAbierto">
       <a class="nav-link" routerLink="/admin/contribuyentes" routerLinkActive="active">Contribuyentes</a>
       <a class="nav-link" routerLink="/admin/alcaldias" routerLinkActive="active">Alcaldías</a>
       <a class="nav-link" routerLink="/admin/sensores" routerLinkActive="active">Sensores</a>

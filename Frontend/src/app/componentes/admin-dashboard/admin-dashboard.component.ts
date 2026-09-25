@@ -18,6 +18,7 @@ import {
   styleUrl: './admin-dashboard.component.css'
 })
 export class AdminDashboardComponent implements OnInit {
+  menuAbierto = false;
   contribuyentes: RegistroAdmin[] = [];
   alcaldias: RegistroAdmin[] = [];
   solicitudesSensores: SolicitudSensorAdmin[] = [];
@@ -34,6 +35,8 @@ export class AdminDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.cargarDatos();
   }
+
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
 
   cargarDatos(): void {
     this.cargando = true;

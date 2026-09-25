@@ -1,14 +1,18 @@
 import logging
+import mimetypes
 import random
 from decimal import Decimal
+from io import BytesIO
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.http import FileResponse
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db import DatabaseError
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.http import urlencode
@@ -32,6 +36,7 @@ from .models import (
     GestionLogistica,
     InventarioAlcaldia,
     LecturaSensor,
+    RecomendacionIa,
     ResiduoOrganico,
     Sensor,
     SolicitudResiduo,
@@ -39,6 +44,7 @@ from .models import (
     Usuario,
 )
 from .services.ia_agronoma import diagnosticar_cultivo
+from .services.reporte_agronomico import generar_reporte_agronomico
 from .services.thingspeak import obtener_ultima_lectura_thingspeak
 from .serializers import (
     GestionLogisticaSerializer,
@@ -96,8 +102,16 @@ class DiagnosticoCultivoView(APIView):
 
         # SENSOR toma la última lectura de un dispositivo vinculado. Los campos
         # ausentes en telemetría conservan el valor manual para no perder datos.
+        lectura = None
         if datos['origen_datos'] == 'SENSOR':
-            lectura_thingspeak = obtener_ultima_lectura_thingspeak()
+            campesino = Campesino.objects.filter(id_usuario=perfil).first()
+            sensor = Sensor.objects.filter(
+                id_campesino=campesino,
+                thingspeak_channel_id__isnull=False,
+            ).exclude(thingspeak_channel_id='').order_by('-fecha_conexion_thingspeak').first()
+            lectura_thingspeak = obtener_ultima_lectura_thingspeak(
+                sensor.thingspeak_channel_id, sensor.thingspeak_read_api_key,
+            ) if sensor else None
             if lectura_thingspeak is not None:
                 datos.update(lectura_thingspeak)
 
@@ -121,7 +135,99 @@ class DiagnosticoCultivoView(APIView):
         resultado, fuente = diagnosticar_cultivo(datos)
         # Transparencia: el cliente puede indicar si recibió IA externa o respaldo seguro.
         resultado['fuente_diagnostico'] = fuente
+        titulo = f"Diagnóstico agronómico · {datos['tipo_cultivo']}"
+        try:
+            contenido_pdf = generar_reporte_agronomico(datos, resultado, perfil.nombre)
+        except RuntimeError as error:
+            logging.exception('No se pudo generar el informe PDF de la IA')
+            return Response(
+                {'error': 'El análisis se realizó, pero falta configurar la generación del informe PDF.', 'detail': str(error)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        recomendacion = RecomendacionIa(
+            campesino=perfil,
+            id_lectura=lectura,
+            titulo=titulo,
+            mensaje_ia=resultado.get('diagnostico_general', ''),
+            contenido_pdf=contenido_pdf,
+            datos_entrada=datos,
+        )
+        recomendacion.save()
+        resultado['recomendacion'] = {
+            'id_recomendacion': recomendacion.id_recomendacion,
+            'titulo': recomendacion.titulo,
+            'fecha_generacion': recomendacion.fecha_generacion,
+            'archivo_pdf': None,
+            'tiene_pdf': True,
+        }
         return Response(resultado, status=status.HTTP_200_OK)
+
+
+class RecomendacionIaHistorialView(APIView):
+    """Devuelve los cinco informes más recientes del campesino autenticado."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden consultar su historial de recomendaciones.'}, status=status.HTTP_403_FORBIDDEN)
+
+        recomendaciones = RecomendacionIa.objects.filter(campesino=perfil).only(
+            'id_recomendacion', 'titulo', 'mensaje_ia', 'archivo_pdf', 'contenido_pdf', 'fecha_generacion', 'datos_entrada'
+        )[:5]
+        return Response([
+            {
+                'id_recomendacion': recomendacion.id_recomendacion,
+                'titulo': recomendacion.titulo,
+                'resumen': recomendacion.mensaje_ia,
+                'cultivo': recomendacion.datos_entrada.get('tipo_cultivo', ''),
+                'fecha_generacion': recomendacion.fecha_generacion,
+                'archivo_pdf': recomendacion.archivo_pdf.url if recomendacion.archivo_pdf else None,
+                'tiene_pdf': bool(recomendacion.contenido_pdf or recomendacion.archivo_pdf),
+            }
+            for recomendacion in recomendaciones
+        ])
+
+
+class ReporteRecomendacionIaView(APIView):
+    """Entrega el PDF únicamente al campesino dueño del diagnóstico."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id_recomendacion):
+        perfil = obtener_perfil(request.user)
+        if perfil is None or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response(
+                {'error': 'Solo los campesinos pueden consultar sus informes.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        recomendacion = RecomendacionIa.objects.filter(
+            id_recomendacion=id_recomendacion,
+            campesino=perfil,
+        ).first()
+        if recomendacion is None or not (recomendacion.contenido_pdf or recomendacion.archivo_pdf):
+            return Response({'error': 'No se encontró el informe solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre_archivo = f"diagnostico-{recomendacion.id_recomendacion}.pdf"
+        if recomendacion.contenido_pdf:
+            return FileResponse(
+                BytesIO(recomendacion.contenido_pdf),
+                content_type='application/pdf',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
+
+        try:
+            return FileResponse(
+                recomendacion.archivo_pdf.open('rb'),
+                content_type='application/pdf',
+                as_attachment=False,
+                filename=recomendacion.archivo_pdf.name.rsplit('/', 1)[-1] or nombre_archivo,
+            )
+        except FileNotFoundError:
+            return Response({'error': 'El archivo del informe no está disponible.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class UltimaLecturaThingSpeakView(APIView):
@@ -137,7 +243,14 @@ class UltimaLecturaThingSpeakView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        lectura = obtener_ultima_lectura_thingspeak()
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        sensor = Sensor.objects.filter(
+            id_campesino=campesino,
+            thingspeak_channel_id__isnull=False,
+        ).exclude(thingspeak_channel_id='').order_by('-fecha_conexion_thingspeak').first()
+        if sensor is None:
+            return Response({'error': 'Primero confirma la recepción y conecta tu propio sensor a ThingSpeak.'}, status=status.HTTP_404_NOT_FOUND)
+        lectura = obtener_ultima_lectura_thingspeak(sensor.thingspeak_channel_id, sensor.thingspeak_read_api_key)
         if lectura is None:
             return Response(
                 {'error': 'No hay una lectura disponible en ThingSpeak. Verifica la configuración y que el sensor haya publicado datos.'},
@@ -258,12 +371,17 @@ def agregar_al_inventario(residuo):
     inventario.save(update_fields=['cantidad_total_kg'])
 
 
-def descontar_del_inventario(tipo_residuo, cantidad):
+def descontar_del_inventario(tipo_residuo, cantidad, presencia_citricos='Ninguna'):
     cantidad_pendiente = Decimal(str(cantidad))
+    categoria = categoria_citricos(tipo_residuo, presencia_citricos)
     inventarios = list(
         InventarioAlcaldia.objects.select_for_update()
-        .filter(tipo_residuo=tipo_residuo, cantidad_total_kg__gt=0)
-        .order_by('presencia_citricos', 'id_inventario')
+        .filter(
+            tipo_residuo=tipo_residuo,
+            presencia_citricos=categoria,
+            cantidad_total_kg__gt=0,
+        )
+        .order_by('presencia_citricos', 'id')
     )
     disponible = sum((Decimal(str(item.cantidad_total_kg)) for item in inventarios), Decimal('0'))
     if disponible < cantidad_pendiente:
@@ -362,7 +480,9 @@ def enviar_correo_aprobacion(usuario, *, nombre_usuario=None):
         message=mensaje,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[destinatario],
-        fail_silently=False,
+        # La activación ya se confirmó mediante un enlace firmado: este correo
+        # es una notificación y no debe bloquear el acceso si Gmail falla.
+        fail_silently=True,
     )
     return True
 
@@ -502,11 +622,13 @@ class RegistroUsuarioView(APIView):
                 )
 
                 estado_cuenta = 'PENDIENTE' if requiere_comprobante else 'pendiente_activacion'
+                contenido_comprobante = comprobante.read() if comprobante else None
                 nuevo_usuario = Usuario.objects.create(
                     nombre=nombre_completo,
                     correo=email,
                     tipo_usuario=tipo_rol,
-                    comprobante_registro=comprobante,
+                    comprobante_contenido=contenido_comprobante,
+                    comprobante_nombre=(comprobante.name or '')[:255] if comprobante else '',
                     estado_cuenta=estado_cuenta,
                 )
                 crear_perfil_rol(nuevo_usuario)
@@ -514,7 +636,7 @@ class RegistroUsuarioView(APIView):
                 try:
                     comprobante_url = None
                     if comprobante:
-                        comprobante_url = f"{request.build_absolute_uri('/')}{nuevo_usuario.comprobante_registro.url}" if nuevo_usuario.comprobante_registro else None
+                        comprobante_url = 'Disponible en el panel de administración.'
 
                     destinatario_correo = (
                         settings.ADMIN_NOTIFICATION_EMAIL
@@ -811,6 +933,8 @@ class SolicitudSensorView(APIView):
                 'motivo_rechazo': solicitud.motivo_rechazo or '',
                 'estado': solicitud.estado,
                 'fecha_solicitud': solicitud.fecha_solicitud,
+                'fecha_recepcion_confirmada': solicitud.fecha_recepcion_confirmada,
+                'sensor': SensorSerializer(solicitud.sensor).data if hasattr(solicitud, 'sensor') else None,
             }
             for solicitud in solicitudes
         ], status=status.HTTP_200_OK)
@@ -875,13 +999,13 @@ class SolicitudSensorView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class VincularSensorView(APIView):
+class ConfirmarEntregaSensorView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id_solicitud_sensor):
         perfil = obtener_perfil(request.user)
         if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
-            return Response({'error': 'Solo los campesinos pueden vincular sensores.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Solo los campesinos pueden confirmar la recepción de sus sensores.'}, status=status.HTTP_403_FORBIDDEN)
 
         campesino = Campesino.objects.filter(id_usuario=perfil).first()
         solicitud = SolicitudSensor.objects.filter(
@@ -891,9 +1015,10 @@ class VincularSensorView(APIView):
         if solicitud is None:
             return Response({'error': 'No se encontró la solicitud de sensor.'}, status=status.HTTP_404_NOT_FOUND)
 
-        fecha_cumplida = solicitud.fecha_entrega_deseada <= timezone.localdate()
-        if solicitud.estado != 'ENTREGADO' and not (solicitud.estado in {'ACEPTADO', 'EN_CAMINO'} and fecha_cumplida):
-            return Response({'error': 'El sensor aún no está disponible para vincular.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.estado not in {'ACEPTADO', 'EN_CAMINO', 'ENTREGADO'}:
+            return Response({'error': 'La solicitud debe estar aceptada antes de confirmar la entrega.'}, status=status.HTTP_400_BAD_REQUEST)
+        if solicitud.fecha_entrega_deseada != timezone.localdate():
+            return Response({'error': 'Solo puedes confirmar la recepción el día programado de entrega.'}, status=status.HTTP_400_BAD_REQUEST)
 
         sensor, creado = Sensor.objects.get_or_create(
             id_solicitud_sensor=solicitud,
@@ -901,7 +1026,40 @@ class VincularSensorView(APIView):
         )
         if not creado and sensor.id_campesino_id != campesino.id_campesino:
             return Response({'error': 'Este sensor no pertenece al campesino autenticado.'}, status=status.HTTP_403_FORBIDDEN)
+        solicitud.estado = 'ENTREGADO'
+        if solicitud.fecha_recepcion_confirmada is None:
+            solicitud.fecha_recepcion_confirmada = timezone.now()
+        solicitud.save(update_fields=['estado', 'fecha_recepcion_confirmada'])
         return Response(SensorSerializer(sensor).data, status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK)
+
+
+class ConectarThingSpeakView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id_sensor):
+        perfil = obtener_perfil(request.user)
+        if not perfil or normalizar_rol(perfil.tipo_usuario) != 'campesino':
+            return Response({'error': 'Solo los campesinos pueden conectar sensores.'}, status=status.HTTP_403_FORBIDDEN)
+
+        canal = str(request.data.get('thingspeak_channel_id') or '').strip()
+        clave_lectura = str(request.data.get('thingspeak_read_api_key') or '').strip()
+        if not canal.isdigit():
+            return Response({'error': 'Ingresa un ID de canal de ThingSpeak válido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        campesino = Campesino.objects.filter(id_usuario=perfil).first()
+        sensor = Sensor.objects.filter(pk=id_sensor, id_campesino=campesino).first()
+        if sensor is None:
+            return Response({'error': 'No se encontró un sensor propio para conectar.'}, status=status.HTTP_404_NOT_FOUND)
+        if not sensor.id_solicitud_sensor or sensor.id_solicitud_sensor.fecha_recepcion_confirmada is None:
+            return Response({'error': 'Primero confirma que recibiste el sensor en la fecha programada.'}, status=status.HTTP_400_BAD_REQUEST)
+        if Sensor.objects.filter(thingspeak_channel_id=canal).exclude(pk=sensor.pk).exists():
+            return Response({'error': 'Ese canal de ThingSpeak ya está conectado a otro sensor.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sensor.thingspeak_channel_id = canal
+        sensor.thingspeak_read_api_key = clave_lectura
+        sensor.fecha_conexion_thingspeak = timezone.now()
+        sensor.save(update_fields=['thingspeak_channel_id', 'thingspeak_read_api_key', 'fecha_conexion_thingspeak'])
+        return Response(SensorSerializer(sensor).data, status=status.HTTP_200_OK)
 
 
 class SolicitudResiduoView(APIView):
@@ -940,6 +1098,7 @@ class SolicitudResiduoView(APIView):
                 'id_campesino': solicitud.id_campesino_id,
                 'campesino_nombre': campesino_nombre,
                 'tipo_residuo': solicitud.tipo_residuo,
+                'presencia_citricos': solicitud.presencia_citricos,
                 'cantidad_kg': solicitud.cantidad_kg,
                 'cantidad_solicitada': solicitud.cantidad_solicitada,
                 'precio_ofrecido_campesino': solicitud.precio_ofrecido_campesino,
@@ -953,6 +1112,7 @@ class SolicitudResiduoView(APIView):
 
     def post(self, request):
         tipo_residuo = request.data.get('tipo_residuo')
+        presencia_citricos = request.data.get('presencia_citricos')
         cantidad_kg = request.data.get('cantidad_kg') or request.data.get('cantidad_solicitada')
         precio_ofrecido = request.data.get('precio_ofrecido_campesino')
         latitud = request.data.get('latitud')
@@ -965,6 +1125,12 @@ class SolicitudResiduoView(APIView):
             return Response({'error': 'Debe seleccionar el tipo de residuo.'}, status=status.HTTP_400_BAD_REQUEST)
         if tipo_residuo not in {'SECO', 'HUMEDO'}:
             return Response({'error': 'Tipo de residuo inválido. Usa SECO o HUMEDO.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        categorias_citricos = {'ninguna', 'baja', 'media', 'alta'}
+        categoria_recibida = str(presencia_citricos or '').strip().lower()
+        if tipo_residuo == 'HUMEDO' and categoria_recibida not in categorias_citricos:
+            return Response({'error': 'Debes seleccionar la categoría de cítricos para el residuo húmedo.'}, status=status.HTTP_400_BAD_REQUEST)
+        presencia_citricos = categoria_citricos(tipo_residuo, presencia_citricos)
 
         try:
             cantidad_kg = float(cantidad_kg)
@@ -995,6 +1161,7 @@ class SolicitudResiduoView(APIView):
         SolicitudResiduo.objects.create(
             id_campesino=campesino,
             tipo_residuo=tipo_residuo,
+            presencia_citricos=presencia_citricos,
             cantidad_kg=cantidad_kg,
             cantidad_solicitada=cantidad_kg,
             precio_ofrecido_campesino=precio_ofrecido,
@@ -1017,6 +1184,7 @@ def serializar_solicitud_residuo(solicitud):
         'id_campesino': solicitud.id_campesino_id,
         'campesino_nombre': campesino_nombre,
         'tipo_residuo': solicitud.tipo_residuo,
+        'presencia_citricos': solicitud.presencia_citricos,
         'cantidad_kg': solicitud.cantidad_kg,
         'cantidad_solicitada': solicitud.cantidad_solicitada,
         'precio_ofrecido_campesino': solicitud.precio_ofrecido_campesino,
@@ -1142,10 +1310,42 @@ class RegistroAdminViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Usuario.objects
             .filter(tipo_usuario__iexact=self.rol)
-            .exclude(comprobante_registro='')
-            .exclude(comprobante_registro__isnull=True)
+            .filter(
+                Q(comprobante_contenido__isnull=False)
+                | (Q(comprobante_registro__isnull=False) & ~Q(comprobante_registro=''))
+            )
             .order_by('-id_usuario')
         )
+
+    @action(detail=True, methods=['get'])
+    def comprobante(self, request, pk=None):
+        """Entrega el comprobante solo a administradores autenticados."""
+        perfil = self.get_object()
+        if not (perfil.comprobante_contenido or perfil.comprobante_registro):
+            return Response({'error': 'No se encontró el comprobante solicitado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre_archivo = (
+            perfil.comprobante_nombre
+            or (perfil.comprobante_registro.name.rsplit('/', 1)[-1] if perfil.comprobante_registro else '')
+            or f'comprobante-{perfil.id_usuario}'
+        )
+        tipo_contenido, _ = mimetypes.guess_type(nombre_archivo)
+        if perfil.comprobante_contenido:
+            return FileResponse(
+                BytesIO(bytes(perfil.comprobante_contenido)),
+                content_type=tipo_contenido or 'application/octet-stream',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
+        try:
+            return FileResponse(
+                perfil.comprobante_registro.open('rb'),
+                content_type=tipo_contenido or 'application/octet-stream',
+                as_attachment=False,
+                filename=nombre_archivo,
+            )
+        except FileNotFoundError:
+            return Response({'error': 'El archivo del comprobante no está disponible.'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['patch'])
     def dictaminar(self, request, pk=None):
@@ -1601,6 +1801,7 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
     def perform_create(self, serializer):
         perfil = self.perfil_actual()
         tipo_residuo = serializer.validated_data.get('tipo_residuo')
+        presencia_citricos = serializer.validated_data.get('presencia_citricos', 'Ninguna')
         cantidad_kg = serializer.validated_data.get('cantidad_kg')
         campesino = serializer.validated_data.get('id_campesino')
 
@@ -1642,7 +1843,7 @@ class GestionListCreateView(RolQuerysetMixin, ListCreateAPIView):
                 raise serializers.ValidationError({'solicitud_id': ['El ID de la solicitud de residuo no es válido.']})
 
         with transaction.atomic():
-            descontar_del_inventario(tipo_residuo, cantidad_a_restar)
+            descontar_del_inventario(tipo_residuo, cantidad_a_restar, presencia_citricos)
             serializer.save(
                 id_usuario_alcaldia=perfil,
                 ubicacion_entrega=ubicacion_entrega,

@@ -7,11 +7,23 @@ import { AdminService, EstadoDictamen, RegistroAdmin } from '../../services/admi
 
 @Component({ selector: 'app-admin-contribuyentes', standalone: true, imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive], templateUrl: './admin-contribuyentes.component.html', styleUrl: '../admin-dashboard/admin-dashboard.component.css' })
 export class AdminContribuyentesComponent implements OnInit {
-  contribuyentes: RegistroAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = '';
+  contribuyentes: RegistroAdmin[] = []; busqueda = ''; mensajeError = ''; mensajeExito = ''; menuAbierto = false;
   constructor(public auth: AuthService, private adminService: AdminService, private cdr: ChangeDetectorRef) {}
   ngOnInit(): void { this.cargarDatos(); }
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
   cargarDatos(): void { this.mensajeError = ''; this.adminService.listarContribuyentes().subscribe({ next: datos => { this.contribuyentes = datos; this.cdr.detectChanges(); }, error: () => { this.mensajeError = 'No se pudieron cargar los contribuyentes.'; this.cdr.detectChanges(); } }); }
   dictaminar(id: number, estado: EstadoDictamen): void { this.adminService.dictaminarContribuyente(id, estado).subscribe({ next: () => { this.mensajeExito = `Contribuyente ${estado === 'ACEPTADO' ? 'aceptado' : 'rechazado'} correctamente.`; this.cargarDatos(); }, error: () => this.mensajeError = 'No se pudo dictaminar el contribuyente.' }); }
+  verComprobante(item: RegistroAdmin): void {
+    this.mensajeError = '';
+    this.adminService.obtenerComprobanteContribuyente(item.id).subscribe({
+      next: (archivo) => {
+        const url = URL.createObjectURL(archivo);
+        window.open(url, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => { this.mensajeError = 'No se pudo abrir el comprobante.'; this.cdr.detectChanges(); }
+    });
+  }
   badgeClass(estado: string): string { const valor = (estado || '').toUpperCase(); return valor === 'ACEPTADO' ? 'badge badge-accepted' : valor === 'RECHAZADO' ? 'badge badge-rejected' : 'badge badge-pending'; }
   estaPendiente(estado: string): boolean { return (estado || '').toUpperCase() === 'PENDIENTE'; }
   tieneUbicacion(ubicacion: string | null): boolean { return Boolean((ubicacion || '').trim()); }

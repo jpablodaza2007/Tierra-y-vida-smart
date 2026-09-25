@@ -1,6 +1,5 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { SiteFooterComponent } from '../site-footer/site-footer';
 import { AuthService } from '../../services/auth';
@@ -16,6 +15,7 @@ import { timeout } from 'rxjs';
 })
 export class PanelCampesinoComponent implements OnInit {
   usuario;
+  menuAbierto = false;
   residuosDisponibles: any[] = [];
   readonly tiposSensoresDisponibles = ['Temperatura', 'pH', 'Humedad'];
   mensajeError = '';
@@ -23,7 +23,7 @@ export class PanelCampesinoComponent implements OnInit {
   mensajeConfirmacionSensor = '';
   seccionActual: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo' = 'sensores';
   solicitud = { tipo_sensores: [] as string[], fecha_entrega_deseada: '' };
-  solicitudResiduo = { tipo_residuo: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
+  solicitudResiduo = { tipo_residuo: '', presencia_citricos: '', cantidad_kg: null as number | null, precio_ofrecido_campesino: null as number | null, ubicacion: '', latitud: null as number | null, longitud: null as number | null };
   precioOfrecidoTexto = '';
   solicitudSensorEnviada = false;
   solicitudSensorEnviandose = false;
@@ -31,7 +31,8 @@ export class PanelCampesinoComponent implements OnInit {
   asignaciones: any[] = [];
   solicitudesResiduo: any[] = [];
   solicitudesSensor: any[] = [];
-  pdfUrlSegura: SafeResourceUrl = '';
+  conexionThingSpeak: Record<number, { thingspeak_channel_id: string; thingspeak_read_api_key: string }> = {};
+  recomendacionesIa: any[] = [];
   fechaMinimaEntrega = this.obtenerFechaLocalActual();
   diagnosticoCultivo: any = null;
   diagnosticoCargando = false;
@@ -53,11 +54,9 @@ export class PanelCampesinoComponent implements OnInit {
   constructor(
     public auth: AuthService,
     private crud: CrudService,
-    private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {
     this.usuario = this.auth.obtenerUsuario();
-    this.pdfUrlSegura = this.sanitizer.bypassSecurityTrustResourceUrl('http://127.0.0.1:8000/media/materiales/i3388s.pdf');
   }
 
   ngOnInit(): void {
@@ -65,6 +64,9 @@ export class PanelCampesinoComponent implements OnInit {
     this.obtenerUbicacionResiduo();
     this.cargarLecturaThingSpeak();
   }
+
+  alternarMenu(): void { this.menuAbierto = !this.menuAbierto; }
+  cerrarMenu(): void { this.menuAbierto = false; }
 
   cambiarSeccion(seccion: 'sensores' | 'materiales' | 'solicitarSensor' | 'solicitarResiduo'): void {
     this.seccionActual = seccion;
@@ -104,6 +106,18 @@ export class PanelCampesinoComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudieron cargar las solicitudes de residuos.')
+    });
+
+    this.cargarRecomendacionesIa();
+  }
+
+  cargarRecomendacionesIa(): void {
+    this.crud.listarRecomendacionesIa().subscribe({
+      next: (datos) => {
+        this.recomendacionesIa = datos;
+        this.cdr.detectChanges();
+      },
+      error: () => this.mensajeDiagnostico = 'No se pudo cargar el historial de informes de la IA.'
     });
   }
 
@@ -202,6 +216,7 @@ export class PanelCampesinoComponent implements OnInit {
       next: (resultado) => {
         this.diagnosticoCultivo = resultado;
         this.diagnosticoCargando = false;
+        this.cargarRecomendacionesIa();
         this.cdr.detectChanges();
       },
       error: (error) => {
@@ -215,108 +230,44 @@ export class PanelCampesinoComponent implements OnInit {
     });
   }
 
-  descargarReporteDiagnostico(): void {
-    if (!this.diagnosticoCultivo) return;
+  abrirReporte(recomendacion: any): void {
+    if (!recomendacion?.id_recomendacion) {
+      this.mensajeDiagnostico = 'El informe seleccionado no está disponible.';
+      this.tipoMensajeDiagnostico = 'error';
+      return;
+    }
 
-    const receta = this.diagnosticoCultivo.receta_compost || {};
-    const lineas = [
-      'REPORTE DE DIAGNOSTICO AGRONOMICO',
-      `Generado: ${new Date().toLocaleString('es-CO')}`,
-      '',
-      `Cultivo: ${this.formularioDiagnostico.tipo_cultivo}`,
-      `Fase: ${this.formularioDiagnostico.fase_cultivo}`,
-      `Area sembrada: ${this.formularioDiagnostico.area_cultivo_m2 ?? 'No especificada'} m2`,
-      `Fuente del analisis: ${this.diagnosticoCultivo.fuente_diagnostico === 'GEMINI' ? 'Gemini IA' : 'Motor local'}`,
-      '',
-      `Estado del cultivo: ${this.diagnosticoCultivo.estado_salud_cultivo || 'No disponible'}`,
-      'Diagnostico general:',
-      this.diagnosticoCultivo.diagnostico_general || 'No disponible',
-      '',
-      `RECETA DE COMPOST (${receta.total_compost_requerido_kg ?? 0} kg)`,
-      `Material verde: ${receta.kg_material_verde ?? 0} kg (40%)`,
-      `Material cafe: ${receta.kg_material_cafe ?? 0} kg (60%)`,
-      '',
-      'ARMADO PASO A PASO:',
-      ...(receta.instrucciones_armado || []).map((paso: string, indice: number) => `${indice + 1}. ${paso}`),
-      '',
-      'RECOMENDACIONES INMEDIATAS:',
-      ...(this.diagnosticoCultivo.recomendaciones_inmediatas || []).map((recomendacion: string) => `- ${recomendacion}`),
-      '',
-      `Alerta de plagas: ${this.diagnosticoCultivo.alerta_plagas || 'NINGUNA'}`,
-    ];
+    // Abrir la pestaña durante el clic evita que el navegador bloquee el PDF.
+    const ventanaReporte = window.open('', '_blank');
+    if (!ventanaReporte) {
+      this.mensajeDiagnostico = 'El navegador bloqueó la ventana del informe. Permite las ventanas emergentes e inténtalo de nuevo.';
+      this.tipoMensajeDiagnostico = 'error';
+      return;
+    }
+    ventanaReporte.document.title = 'Generando informe…';
+    ventanaReporte.document.body.innerHTML = '<p style="font-family:sans-serif;padding:2rem">Generando informe PDF…</p>';
 
-    const pdf = this.crearPdf(lineas);
-    const enlace = document.createElement('a');
-    enlace.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
-    enlace.download = `reporte-agronomico-${this.fechaParaArchivo()}.pdf`;
-    enlace.click();
-    setTimeout(() => URL.revokeObjectURL(enlace.href), 0);
-  }
-
-  private crearPdf(lineas: string[]): string {
-    const anchoMaximo = 88;
-    const lineasAjustadas = lineas.flatMap((linea) => this.ajustarLineaPdf(linea, anchoMaximo));
-    const lineasPorPagina = 57;
-    const paginas = Array.from(
-      { length: Math.max(1, Math.ceil(lineasAjustadas.length / lineasPorPagina)) },
-      (_, indice) => lineasAjustadas.slice(indice * lineasPorPagina, (indice + 1) * lineasPorPagina),
-    );
-    const objetos: string[] = [
-      '<< /Type /Catalog /Pages 2 0 R >>',
-      `<< /Type /Pages /Kids [${paginas.map((_, indice) => `${3 + indice * 2} 0 R`).join(' ')}] /Count ${paginas.length} >>`,
-    ];
-    const idFuente = 3 + paginas.length * 2;
-
-    paginas.forEach((pagina, indice) => {
-      const idPagina = 3 + indice * 2;
-      const idContenido = idPagina + 1;
-      const contenido = `BT\n/F1 10 Tf\n50 790 Td\n13 TL\n${pagina.map((linea) => `(${this.escaparTextoPdf(linea)}) Tj\nT*`).join('\n')}\nET`;
-      objetos[idPagina - 1] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${idFuente} 0 R >> >> /Contents ${idContenido} 0 R >>`;
-      objetos[idContenido - 1] = `<< /Length ${contenido.length} >>\nstream\n${contenido}\nendstream`;
+    this.crud.obtenerReporteIa(recomendacion.id_recomendacion).subscribe({
+      next: (pdf) => {
+        const urlPdf = URL.createObjectURL(pdf);
+        ventanaReporte.location.replace(urlPdf);
+        window.setTimeout(() => URL.revokeObjectURL(urlPdf), 60_000);
+      },
+      error: () => {
+        ventanaReporte.close();
+        this.mensajeDiagnostico = 'No fue posible abrir el informe PDF. Si fue creado antes de la actualización, genera uno nuevo para guardarlo de forma segura.';
+        this.tipoMensajeDiagnostico = 'error';
+        this.cdr.detectChanges();
+      },
     });
-    objetos[idFuente - 1] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
-
-    let pdf = '%PDF-1.4\n%PDF generated by Tierra y Vida Smart\n';
-    const posiciones: number[] = [0];
-    objetos.forEach((objeto, indice) => {
-      posiciones.push(pdf.length);
-      pdf += `${indice + 1} 0 obj\n${objeto}\nendobj\n`;
-    });
-    const inicioXref = pdf.length;
-    pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
-    posiciones.slice(1).forEach((posicion) => { pdf += `${String(posicion).padStart(10, '0')} 00000 n \n`; });
-    pdf += `trailer\n<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${inicioXref}\n%%EOF`;
-    return pdf;
   }
 
-  private ajustarLineaPdf(linea: string, anchoMaximo: number): string[] {
-    if (!linea) return [''];
-    const palabras = this.normalizarTextoPdf(linea).split(/\s+/);
-    const resultado: string[] = [];
-    let actual = '';
-    palabras.forEach((palabra) => {
-      const candidata = actual ? `${actual} ${palabra}` : palabra;
-      if (candidata.length > anchoMaximo && actual) {
-        resultado.push(actual);
-        actual = palabra;
-      } else {
-        actual = candidata;
-      }
-    });
-    if (actual) resultado.push(actual);
-    return resultado;
-  }
-
-  private normalizarTextoPdf(texto: string): string {
-    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
-  }
-
-  private escaparTextoPdf(texto: string): string {
-    return texto.replace(/([\\()])/g, '\\$1');
-  }
-
-  private fechaParaArchivo(): string {
-    return new Date().toISOString().slice(0, 10);
+  formatearFechaRecomendacion(fecha: string | null | undefined): string {
+    if (!fecha) return 'Fecha no disponible';
+    const fechaConvertida = new Date(fecha);
+    return Number.isNaN(fechaConvertida.getTime())
+      ? 'Fecha no disponible'
+      : fechaConvertida.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
   alternarSensorSolicitud(tipoSensor: string, seleccionado: boolean): void {
@@ -376,6 +327,43 @@ export class PanelCampesinoComponent implements OnInit {
     });
   }
 
+  puedeConfirmarEntrega(solicitud: any): boolean {
+    return ['ACEPTADO', 'EN_CAMINO', 'ENTREGADO'].includes(solicitud.estado)
+      && solicitud.fecha_entrega_deseada === this.obtenerFechaLocalActual()
+      && !solicitud.fecha_recepcion_confirmada;
+  }
+
+  confirmarEntregaSensor(solicitud: any): void {
+    this.crud.confirmarEntregaSensor(solicitud.id_solicitud_sensor).subscribe({
+      next: () => {
+        this.mensajeExito = 'Recepción confirmada. Ahora puedes conectar este sensor a ThingSpeak.';
+        this.mensajeError = '';
+        this.cargar();
+      },
+      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo confirmar la recepción del sensor.')
+    });
+  }
+
+  conectarSensorThingSpeak(solicitud: any): void {
+    const datos = this.conexionThingSpeak[solicitud.id_solicitud_sensor] || { thingspeak_channel_id: '', thingspeak_read_api_key: '' };
+    if (!datos.thingspeak_channel_id.trim()) {
+      this.mensajeError = 'Ingresa el ID de tu canal de ThingSpeak.';
+      return;
+    }
+    this.crud.conectarSensorThingSpeak(solicitud.sensor.id_sensor, datos).subscribe({
+      next: () => {
+        this.mensajeExito = 'Sensor conectado a tu canal propio de ThingSpeak.';
+        this.mensajeError = '';
+        this.cargar();
+      },
+      error: (error) => this.mensajeError = this.obtenerMensajeError(error, 'No se pudo conectar el sensor a ThingSpeak.')
+    });
+  }
+
+  solicitudConexion(idSolicitud: number): { thingspeak_channel_id: string; thingspeak_read_api_key: string } {
+    return this.conexionThingSpeak[idSolicitud] ||= { thingspeak_channel_id: '', thingspeak_read_api_key: '' };
+  }
+
   solicitarResiduo(): void {
     if (this.solicitudResiduoEnviada) {
       this.mensajeExito = 'Ya se envió la solicitud de residuo. La alcaldía revisará la solicitud.';
@@ -384,6 +372,10 @@ export class PanelCampesinoComponent implements OnInit {
 
     if (!this.solicitudResiduo.tipo_residuo?.trim()) {
       this.mensajeError = 'Selecciona un tipo de residuo.';
+      return;
+    }
+    if (this.solicitudResiduo.tipo_residuo === 'HUMEDO' && !this.solicitudResiduo.presencia_citricos) {
+      this.mensajeError = 'Selecciona la categoría de cítricos del residuo húmedo.';
       return;
     }
     if (this.solicitudResiduo.cantidad_kg == null || Number(this.solicitudResiduo.cantidad_kg) <= 0) {
@@ -424,6 +416,16 @@ export class PanelCampesinoComponent implements OnInit {
     const precio = this.convertirMonedaANumero(this.precioOfrecidoTexto);
     this.solicitudResiduo.precio_ofrecido_campesino = precio;
     this.precioOfrecidoTexto = precio == null ? '' : this.formatearMoneda(precio);
+  }
+
+  formatearPrecio(valor: number | string | null | undefined): string {
+    if (valor === null || valor === undefined || valor === '') return '—';
+    const precio = Number(valor);
+    return Number.isFinite(precio) ? this.formatearMoneda(precio) : '—';
+  }
+
+  obtenerPrecioFinal(solicitud: any): number | string | null {
+    return solicitud.contraoferta_alcaldia ?? solicitud.precio_ofrecido_campesino;
   }
 
   responderContraofertaSolicitud(solicitud: any, decision: 'aceptar' | 'rechazar'): void {

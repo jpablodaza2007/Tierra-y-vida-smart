@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
 
 @Component({
@@ -11,10 +11,12 @@ import { AuthService } from '../../services/auth';
 export class ActivarCuentaComponent implements OnInit {
   procesando = true;
   activada = false;
+  redireccionando = false;
   mensaje = 'Estamos verificando tu enlace...';
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private authService: AuthService
   ) {}
 
@@ -32,6 +34,12 @@ export class ActivarCuentaComponent implements OnInit {
         this.procesando = false;
         this.activada = true;
         this.mensaje = res.mensaje || 'Tu cuenta fue activada correctamente.';
+        this.redireccionando = true;
+        // El token no debe permanecer visible en el historial o en la barra de direcciones.
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.setTimeout(() => {
+          this.router.navigate(['/login'], { replaceUrl: true });
+        }, 2500);
       },
       error: (err) => {
         this.procesando = false;

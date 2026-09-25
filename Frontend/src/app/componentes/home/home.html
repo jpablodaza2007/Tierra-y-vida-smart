@@ -1,12 +1,14 @@
 <nav class="navbar">
   <div class="container nav-content">
     <div class="logo">
-      <span class="green-text">Tierra y Vida</span> Smart
+      <img class="navbar-logo" src="assets/tierra-y-vida-logo.jpeg" alt="Logo Tierra y Vida">
+      <span><span class="green-text">Tierra y Vida</span> Smart</span>
     </div>
-    <div class="nav-links">
-      <button type="button" class="nav-section-link" (click)="scrollToSection('inicio')">Inicio</button>
-      <button type="button" class="nav-section-link" (click)="scrollToSection('funciones')">Funciones</button>
-      <button type="button" class="nav-section-link" (click)="scrollToSection('ruta')">Nuestra Ruta</button>
+    <button type="button" class="navbar-toggle" (click)="alternarMenu()" [attr.aria-expanded]="menuAbierto" aria-controls="menu-inicio">{{ menuAbierto ? 'Cerrar menú' : 'Menú' }}</button>
+    <div id="menu-inicio" class="nav-links" [class.menu-open]="menuAbierto">
+      <button type="button" class="nav-section-link" (click)="scrollToSection('inicio'); cerrarMenu()">Inicio</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('funciones'); cerrarMenu()">Funciones</button>
+      <button type="button" class="nav-section-link" (click)="scrollToSection('ruta'); cerrarMenu()">Nuestra Ruta</button>
       <a routerLink="/registro" class="btn-crear-cuenta">Crear Cuenta</a>
       <button class="btn-nav" routerLink="/login">Iniciar Sesión</button>
     </div>
@@ -127,7 +129,7 @@
     <div class="footer-section">
       <h4><i class="fa-solid fa-phone"></i> Contacto</h4>
       <p>323 210 5825</p>
-      <p>info@tierrayvidasmart.com</p>
+      <p>tierrayvidasmart@gmail.com</p>
     </div>
     <div class="footer-section">
       <h4><i class="fa-solid fa-location-dot"></i> Ubicación</h4>
@@ -141,9 +143,9 @@
     <div class="footer-section">
       <h4><i class="fa-solid fa-share-nodes"></i> Síguenos</h4>
       <div class="social-icons">
-        <a href="#"><i class="fa-brands fa-instagram"></i></a>
-        <a href="#"><i class="fa-brands fa-facebook"></i></a>
-        <a href="#"><i class="fa-brands fa-linkedin"></i></a>
+        <a href="https://www.instagram.com/tierrayvidasmart/"><i class="fa-brands fa-instagram"></i></a>
+        <a href="https://www.facebook.com/profile.php?id=61594305992317"><i class="fa-brands fa-facebook"></i></a>
+        <a href="https://www.tiktok.com/@tierrayvidasmart"><i class="fa-brands fa-tiktok"></i></a>
       </div>
     </div>
   </div>

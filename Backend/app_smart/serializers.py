@@ -222,10 +222,15 @@ class ResiduoOrganicoSerializer(serializers.ModelSerializer):
 
 
 class SensorSerializer(serializers.ModelSerializer):
+    conectado_thingspeak = serializers.SerializerMethodField()
+
     class Meta:
         model = Sensor
-        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
-        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor']
+        fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor', 'thingspeak_channel_id', 'fecha_conexion_thingspeak', 'conectado_thingspeak']
+        read_only_fields = ['id_sensor', 'tipo_sensor', 'id_solicitud_sensor', 'thingspeak_channel_id', 'fecha_conexion_thingspeak', 'conectado_thingspeak']
+
+    def get_conectado_thingspeak(self, obj):
+        return bool(obj.thingspeak_channel_id)
 
 
 class RegistroAdminSerializer(serializers.ModelSerializer):
@@ -277,8 +282,10 @@ class RegistroAdminSerializer(serializers.ModelSerializer):
         return estados.get(obj.estado_cuenta, obj.estado_cuenta or 'PENDIENTE')
 
     def get_comprobante_url(self, obj):
-        if not obj.comprobante_registro:
+        if not (obj.comprobante_contenido or obj.comprobante_registro):
             return ''
+        if obj.comprobante_contenido:
+            return 'Disponible en el panel de administración.'
         request = self.context.get('request')
         url = obj.comprobante_registro.url
         return request.build_absolute_uri(url) if request else url
@@ -333,6 +340,10 @@ class GestionLogisticaSerializer(serializers.ModelSerializer):
     )
     ubicacion = serializers.SerializerMethodField()
     tipo_residuo = serializers.ChoiceField(choices=TIPO_RESIDUO_CHOICES)
+    presencia_citricos = serializers.ChoiceField(
+        choices=['Ninguna', 'Baja', 'Media', 'Alta'],
+        required=False,
+    )
     cantidad_kg = serializers.DecimalField(max_digits=10, decimal_places=2)
     ubicacion_entrega = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
@@ -341,6 +352,7 @@ class GestionLogisticaSerializer(serializers.ModelSerializer):
         fields = [
             'id_gestion',
             'tipo_residuo',
+            'presencia_citricos',
             'cantidad_kg',
             'fecha_asignacion',
             'campesino_id',
@@ -374,6 +386,12 @@ class GestionLogisticaSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        tipo_residuo = attrs.get('tipo_residuo') or getattr(self.instance, 'tipo_residuo', None)
+        presencia_citricos = attrs.get('presencia_citricos') or getattr(self.instance, 'presencia_citricos', None)
+        if tipo_residuo == 'HUMEDO' and presencia_citricos not in {'Ninguna', 'Baja', 'Media', 'Alta'}:
+            raise serializers.ValidationError({'presencia_citricos': 'Selecciona una categoría de cítricos válida.'})
+        attrs['presencia_citricos'] = presencia_citricos if tipo_residuo == 'HUMEDO' else 'Ninguna'
+
         campesino = attrs.get('id_campesino') or getattr(self.instance, 'id_campesino', None)
         ubicacion_entrega = (attrs.get('ubicacion_entrega') or '').strip()
 

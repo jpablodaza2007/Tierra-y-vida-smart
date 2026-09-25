@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import unquote, urlparse
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -28,13 +29,23 @@ THINGSPEAK_READ_API_KEY = os.getenv('THINGSPEAK_READ_API_KEY', '')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r+lv3+are@*ft2@_%#y#%30^@--=j4f5(!rja6^8yw+_hd9#%a'
+def env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
+def env_list(name, default=''):
+    return [value.strip() for value in os.getenv(name, default).split(',') if value.strip()]
+
+
+DEPLOYMENT = env_bool('DEPLOYMENT', False)
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEPLOYMENT:
+        raise RuntimeError('SECRET_KEY is required when DEPLOYMENT=True.')
+    SECRET_KEY = 'django-insecure-local-development-only-change-me'
+
+DEBUG = env_bool('DEBUG', not DEPLOYMENT)
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1' if DEBUG else '')
 
 
 # Application definition
@@ -87,16 +98,33 @@ WSGI_APPLICATION = 'tierra_y_vida.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'tierra_y_vida_smart',          
-        'USER': 'postgres',                 
-        'PASSWORD': '1234',    
-        'HOST': 'localhost',                
-        'PORT': '5432',                     
+database_url = os.getenv('DATABASE_URL', '')
+if database_url:
+    parsed_database_url = urlparse(database_url)
+    if parsed_database_url.scheme not in {'postgres', 'postgresql'}:
+        raise RuntimeError('DATABASE_URL must use postgres:// or postgresql://.')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_database_url.path.lstrip('/'),
+            'USER': unquote(parsed_database_url.username or ''),
+            'PASSWORD': unquote(parsed_database_url.password or ''),
+            'HOST': parsed_database_url.hostname or '',
+            'PORT': str(parsed_database_url.port or 5432),
+            'CONN_MAX_AGE': 60,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'tierra_y_vida_smart'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
 
 
 # Password validation
@@ -123,7 +151,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Las fechas de entrega se comparan con el día local del campesino. Mantener
+# esta zona alineada con Colombia evita que el frontend y el servidor difieran
+# durante las horas cercanas a la medianoche.
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -134,6 +165,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -142,13 +174,13 @@ GOOGLE_CLIENT_ID = os.environ.get(
     '310711929084-e96ibrd6ns8je9t542s9lcofb2bdug5b.apps.googleusercontent.com',
 )
 
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:4200').rstrip('/')
 EMAIL_VERIFICATION_MAX_AGE = 60 * 60 * 24
 
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_BACKEND = (
-    'app_smart.backends.UnverifiedSMTPBackend'
+    'django.core.mail.backends.smtp.EmailBackend'
     if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
     else 'django.core.mail.backends.console.EmailBackend'
 )
@@ -163,12 +195,22 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'fabiantfandi@gmail.com')
 ADMIN_NOTIFICATION_NAME = os.environ.get('ADMIN_NOTIFICATION_NAME', 'Administrador')
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:4200,http://127.0.0.1:4200' if DEBUG else FRONTEND_URL,
+)
+CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS', FRONTEND_URL if not DEBUG else '')
 
-X_FRAME_OPTIONS = 'SAMEORIGIN'
+SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', DEPLOYMENT)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if DEPLOYMENT else None
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000' if DEPLOYMENT else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = DEPLOYMENT
+SECURE_HSTS_PRELOAD = DEPLOYMENT
+SESSION_COOKIE_SECURE = DEPLOYMENT
+CSRF_COOKIE_SECURE = DEPLOYMENT
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = 'DENY'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

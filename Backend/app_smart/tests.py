@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 
-from .models import Campesino, Contribuyente, ResiduoOrganico, SolicitudResiduo, Usuario
+from .models import Campesino, Contribuyente, DispositivoSensor, ResiduoOrganico, Sensor, SolicitudResiduo, SolicitudSensor, Usuario
 from .views import crear_token_verificacion
 
 
@@ -150,7 +150,20 @@ class AutenticacionYRegistroTests(APITestCase):
         self.assertFalse(usuario_django.is_active)
         perfil = Usuario.objects.get(correo='alcaldia@example.com')
         self.assertEqual(perfil.estado_cuenta, 'pendiente_aprobacion')
-        self.assertTrue(bool(perfil.comprobante_registro))
+        self.assertEqual(bytes(perfil.comprobante_contenido), b'%PDF-1.4\n')
+        self.assertEqual(perfil.comprobante_nombre, 'comprobante.pdf')
+
+        administrador = User.objects.create_user(
+            username='admin_comprobantes', password='UnaClaveSegura123', is_staff=True,
+        )
+        self.client.force_authenticate(administrador)
+        listado = self.client.get(reverse('admin-alcaldias-list'))
+        archivo = self.client.get(reverse('admin-alcaldias-comprobante', args=[perfil.pk]))
+
+        self.assertEqual(listado.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item['id'] == perfil.pk for item in listado.data))
+        self.assertEqual(archivo.status_code, status.HTTP_200_OK)
+        self.assertEqual(b''.join(archivo.streaming_content), b'%PDF-1.4\n')
 
 
 class CrudPorRolTests(APITestCase):
@@ -225,6 +238,67 @@ class CrudPorRolTests(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Solicitud de sensor', mail.outbox[0].subject)
+
+
+class SensoresPropiosTests(APITestCase):
+    def crear_campesino(self, username):
+        user = User.objects.create_user(
+            username=username,
+            email=f'{username}@example.com',
+            password='UnaClaveSegura123',
+        )
+        perfil = Usuario.objects.create(nombre=username, correo=user.email, tipo_usuario='Campesino')
+        return user, perfil, Campesino.objects.create(id_usuario=perfil)
+
+    def test_entrega_crea_un_sensor_solo_para_su_solicitud_y_campesino(self):
+        primer_user, _, primer_campesino = self.crear_campesino('campesino_uno')
+        segundo_user, _, segundo_campesino = self.crear_campesino('campesino_dos')
+        primera_solicitud = SolicitudSensor.objects.create(
+            id_campesino=primer_campesino,
+            tipo_sensor='Humedad',
+            estado='ACEPTADO',
+            fecha_entrega_deseada=timezone.localdate(),
+        )
+        segunda_solicitud = SolicitudSensor.objects.create(
+            id_campesino=segundo_campesino,
+            tipo_sensor='Humedad',
+            estado='ACEPTADO',
+            fecha_entrega_deseada=timezone.localdate(),
+        )
+
+        self.client.force_authenticate(primer_user)
+        respuesta_primera = self.client.post(
+            reverse('confirmar_entrega_sensor', args=[primera_solicitud.pk]), format='json'
+        )
+        acceso_ajeno = self.client.post(
+            reverse('confirmar_entrega_sensor', args=[segunda_solicitud.pk]), format='json'
+        )
+
+        self.client.force_authenticate(segundo_user)
+        respuesta_segunda = self.client.post(
+            reverse('confirmar_entrega_sensor', args=[segunda_solicitud.pk]), format='json'
+        )
+
+        self.assertEqual(respuesta_primera.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(acceso_ajeno.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(respuesta_segunda.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Sensor.objects.get(id_solicitud_sensor=primera_solicitud).id_campesino, primer_campesino)
+        self.assertEqual(Sensor.objects.get(id_solicitud_sensor=segunda_solicitud).id_campesino, segundo_campesino)
+
+    def test_mac_fisica_es_unica_por_dispositivo(self):
+        _, perfil, _ = self.crear_campesino('campesino_mac')
+        DispositivoSensor.objects.create(
+            codigo_mac='AA:BB:CC:DD:EE:FF',
+            campesino=perfil,
+            referencia_hardware=DispositivoSensor.ReferenciaHardware.ESP32_DHT22_TEMP,
+        )
+
+        with self.assertRaises(Exception):
+            DispositivoSensor.objects.create(
+                codigo_mac='AA:BB:CC:DD:EE:FF',
+                campesino=perfil,
+                referencia_hardware=DispositivoSensor.ReferenciaHardware.ESP32_DHT22_TEMP,
+            )
 
     def test_campesino_solicita_residuo_y_queda_pendiente_para_alcaldia(self):
         user, perfil = self.crear_usuario('campesino_residuo', 'Campesino')

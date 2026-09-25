@@ -23,10 +23,22 @@
 }
 
 .navbar-brand {
+  align-items: center;
+  display: flex;
   font-size: 1rem;
   font-weight: 800;
+  gap: 8px;
   letter-spacing: 0.04em;
   color: white;
+}
+
+.navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 36px;
+  object-fit: cover;
+  width: 36px;
 }
 
 .green-text {
@@ -163,6 +175,14 @@
   outline: none;
   border-color: var(--primary-green);
   box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.1);
+}
+
+/* La ubicación la completa el GPS; se muestra como un campo no editable. */
+.form-grid .location-input-disabled {
+  background: #e5e7eb;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .form-grid textarea {
@@ -1063,6 +1083,10 @@ tr:hover {
   transform: none;
 }
 
+.contribuyente-page .navbar-toggle {
+  display: none;
+}
+
 .contribuyente-page .dashboard {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
@@ -1204,12 +1228,38 @@ tr:hover {
 
 @media (max-width: 640px) {
   .contribuyente-page .panel-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     padding: 14px 18px;
   }
 
+  .contribuyente-page .navbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 12px;
+    color: #ffffff;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   .contribuyente-page .navbar-actions {
+    display: none;
+    grid-column: 1 / -1;
     width: 100%;
+    margin-top: 4px;
     gap: 12px;
+  }
+
+  .contribuyente-page .navbar-actions.menu-open {
+    display: flex;
+    flex-direction: column;
   }
 
   .contribuyente-page .nav-section-link,
@@ -1253,11 +1303,54 @@ tr:hover {
 }
 
 .alcaldia-page .navbar-brand {
+  align-items: center;
+  display: flex;
   flex: 0 0 auto;
   font-size: 1.4rem;
   font-weight: 700;
+  gap: 10px;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.campesino-page .ia-history {
+  border-top: 1px solid #e5ece6;
+  padding-top: 24px;
+}
+
+.campesino-page .ia-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.campesino-page .ia-history-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #cfe5d5;
+  border-top: 4px solid #2ecc71;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ffffff, #f3fbf5);
+}
+
+.campesino-page .ia-history-card h4,
+.campesino-page .ia-history-card p,
+.campesino-page .ia-history-card time {
+  margin: 0;
+}
+
+.campesino-page .ia-history-card h4 { color: #0f172a; }
+.campesino-page .ia-history-card time { color: #64748b; font-size: .82rem; }
+.campesino-page .ia-history-card .btn { justify-self: start; margin-top: 4px; }
+
+.alcaldia-page .navbar-logo {
+  border-radius: 50%;
+  display: block;
+  flex: 0 0 auto;
+  height: 42px;
+  object-fit: cover;
+  width: 42px;
 }
 
 .alcaldia-page .navbar-actions {
@@ -1422,6 +1515,51 @@ tr:hover {
 
   .alcaldia-page .panel-section {
     padding: 20px;
+  }
+}
+
+/* Menús plegables de Campesino y Alcaldía para pantallas pequeñas. */
+.campesino-page .navbar-toggle,
+.alcaldia-page .navbar-toggle {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .campesino-page .panel-navbar,
+  .alcaldia-page .panel-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .campesino-page .navbar-toggle,
+  .alcaldia-page .navbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 12px;
+    color: #ffffff;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .campesino-page .navbar-actions,
+  .alcaldia-page .navbar-actions {
+    display: none;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .campesino-page .navbar-actions.menu-open,
+  .alcaldia-page .navbar-actions.menu-open {
+    display: flex;
+    flex-direction: column;
   }
 }
 

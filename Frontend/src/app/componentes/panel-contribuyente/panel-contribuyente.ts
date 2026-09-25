@@ -20,6 +20,7 @@ export class PanelContribuyenteComponent implements OnInit {
   editandoId: number | null = null;
   mensajeError = '';
   seccionActual: 'registro' | 'materiales' | 'residuos' = 'registro';
+  menuAbierto = false;
   formulario = this.nuevoFormulario();
   precioSugeridoTexto = '';
   pdfUrlSegura: SafeResourceUrl = '';
@@ -37,6 +38,14 @@ export class PanelContribuyenteComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.obtenerUbicacionActual();
+  }
+
+  alternarMenu(): void {
+    this.menuAbierto = !this.menuAbierto;
+  }
+
+  cerrarMenu(): void {
+    this.menuAbierto = false;
   }
 
   nuevoFormulario() {
@@ -250,6 +259,16 @@ export class PanelContribuyenteComponent implements OnInit {
     const precio = this.convertirMonedaANumero(this.precioSugeridoTexto || String(this.formulario.precio_sugerido_contribuyente ?? ''));
     this.formulario.precio_sugerido_contribuyente = precio;
     this.precioSugeridoTexto = precio == null ? '' : this.formatearMoneda(precio);
+  }
+
+  formatearPrecio(valor: number | string | null | undefined): string {
+    if (valor === null || valor === undefined || valor === '') return '—';
+    const precio = Number(valor);
+    return Number.isFinite(precio) ? this.formatearMoneda(precio) : '—';
+  }
+
+  obtenerPrecioFinal(residuo: any): number | string | null {
+    return residuo.contraoferta_alcaldia ?? residuo.precio_sugerido_contribuyente;
   }
 
   private formatearMoneda(valor: number): string {
