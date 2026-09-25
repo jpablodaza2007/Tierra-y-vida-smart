@@ -135,8 +135,8 @@ export class CrudService {
     });
   }
 
-  obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null }> {
-    return this.http.get<{ temperatura: number | null; humedad_ambiente: number | null }>(
+  obtenerUltimaLecturaThingSpeak(): Observable<{ temperatura: number | null; humedad_ambiente: number | null; humedad_suelo: number | null }> {
+    return this.http.get<{ temperatura: number | null; humedad_ambiente: number | null; humedad_suelo: number | null }>(
       `${this.API_URL}iot/ultima-lectura-thingspeak/`
     );
   }

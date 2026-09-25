@@ -28,6 +28,7 @@ def publicar(channel, write_key, lectura):
             'api_key': write_key,
             'field1': lectura['temperatura'],
             'field2': lectura['humedad_ambiente'],
+            'field3': lectura['humedad_suelo'],
         },
         timeout=15,
     )
@@ -56,7 +57,7 @@ def main():
 
     if args.probar_thingspeak:
         try:
-            entrada = publicar(args.channel, args.write_key, {'temperatura': 25, 'humedad_ambiente': 60})
+            entrada = publicar(args.channel, args.write_key, {'temperatura': 25, 'humedad_ambiente': 60, 'humedad_suelo': 55})
             print(f'Prueba exitosa. ThingSpeak creó la entrada #{entrada}.', flush=True)
         except (requests.RequestException, RuntimeError) as error:
             print(f'Error exacto al publicar en ThingSpeak: {error}', file=sys.stderr, flush=True)
@@ -92,13 +93,19 @@ def main():
                 lectura = json.loads(linea)
                 temperatura = float(lectura['temperatura'])
                 humedad = float(lectura['humedad_ambiente'])
-                if not (-40 <= temperatura <= 80 and 0 <= humedad <= 100):
-                    raise ValueError('Valores DHT11 fuera de rango.')
+                humedad_suelo = float(lectura['humedad_suelo'])
+                if not (-40 <= temperatura <= 80 and 0 <= humedad <= 100 and 0 <= humedad_suelo <= 100):
+                    raise ValueError('Valores de los sensores fuera de rango.')
                 entrada = publicar(args.channel, args.write_key, {
                     'temperatura': temperatura,
                     'humedad_ambiente': humedad,
+                    'humedad_suelo': humedad_suelo,
                 })
-                print(f'Publicado en ThingSpeak (entrada #{entrada}): {temperatura:.1f} °C, {humedad:.1f} %', flush=True)
+                print(
+                    f'Publicado en ThingSpeak (entrada #{entrada}): {temperatura:.1f} °C, '
+                    f'{humedad:.1f} % ambiente, {humedad_suelo:.1f} % suelo',
+                    flush=True,
+                )
             except (KeyError, ValueError, json.JSONDecodeError) as error:
                 print(f'Línea descartada ({error}): {linea}', file=sys.stderr, flush=True)
             except (requests.RequestException, RuntimeError) as error:

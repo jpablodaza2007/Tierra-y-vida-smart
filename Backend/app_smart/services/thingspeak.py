@@ -16,7 +16,7 @@ def _a_numero(valor):
 
 
 def obtener_ultima_lectura_thingspeak(channel_id=None, read_api_key=None):
-    """Retorna temperatura y humedad ambiental, o ``None`` si no están disponibles."""
+    """Retorna temperatura, humedad ambiental y humedad del suelo, o ``None``."""
     channel_id = channel_id or getattr(settings, 'THINGSPEAK_CHANNEL_ID', '')
     read_api_key = read_api_key or getattr(settings, 'THINGSPEAK_READ_API_KEY', '')
     if not channel_id:
@@ -32,12 +32,14 @@ def obtener_ultima_lectura_thingspeak(channel_id=None, read_api_key=None):
         datos = respuesta.json()
         temperatura = _a_numero(datos.get('field1'))
         humedad_ambiente = _a_numero(datos.get('field2'))
-        if temperatura is None and humedad_ambiente is None:
+        humedad_suelo = _a_numero(datos.get('field3'))
+        if temperatura is None and humedad_ambiente is None and humedad_suelo is None:
             logger.warning('ThingSpeak no devolvió temperatura ni humedad en el último registro.')
             return None
         return {
             'temperatura': temperatura,
             'humedad_ambiente': humedad_ambiente,
+            'humedad_suelo': humedad_suelo,
         }
     except (requests.RequestException, ValueError) as error:
         logger.warning('No se pudo leer ThingSpeak: %s', error)

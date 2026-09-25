@@ -84,6 +84,10 @@ def generar_reporte_agronomico(datos: dict, resultado: dict, nombre_campesino: s
         ['Cultivo', datos.get('tipo_cultivo')], ['Fase', datos.get('fase_cultivo')],
         ['Área sembrada', f"{datos.get('area_cultivo_m2', 'No especificada')} m²"],
         ['Origen de datos', 'Sensores IoT' if datos.get('origen_datos') == 'SENSOR' else 'Registro manual'],
+        ['Temperatura ambiental', f"{datos['temperatura']:.1f} C" if datos.get('temperatura') is not None else None],
+        ['Humedad ambiental', f"{datos['humedad_ambiente']:.1f} %" if datos.get('humedad_ambiente') is not None else None],
+        ['Humedad del suelo', f"{datos['humedad_suelo']:.1f} %" if datos.get('humedad_suelo') is not None else None],
+        ['pH del suelo', f"{datos['ph_suelo']:.1f}" if datos.get('ph_suelo') is not None else None],
     ]
     tabla_contexto = Table([[dato_etiquetado(etiqueta, ''), parrafo(valor)] for etiqueta, valor in contexto], colWidths=[4.2 * cm, 12.4 * cm])
     tabla_contexto.setStyle(TableStyle([

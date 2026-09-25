@@ -8,7 +8,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 
-from .models import Campesino, Contribuyente, DispositivoSensor, ResiduoOrganico, Sensor, SolicitudResiduo, SolicitudSensor, Usuario
+from .models import Campesino, Contribuyente, DispositivoSensor, RecomendacionIa, ResiduoOrganico, Sensor, SolicitudResiduo, SolicitudSensor, Usuario
+from .services.thingspeak import obtener_ultima_lectura_thingspeak
 from .views import crear_token_verificacion
 
 
@@ -300,6 +301,50 @@ class SensoresPropiosTests(APITestCase):
                 referencia_hardware=DispositivoSensor.ReferenciaHardware.ESP32_DHT22_TEMP,
             )
 
+    @patch('app_smart.views.generar_reporte_agronomico', return_value=b'%PDF-1.4')
+    @patch('app_smart.views.diagnosticar_cultivo')
+    @patch('app_smart.views.obtener_ultima_lectura_thingspeak')
+    def test_diagnostico_con_sensores_usa_humedad_suelo_de_thingspeak(
+        self, mock_lectura, mock_diagnostico, _mock_pdf,
+    ):
+        user, perfil, campesino = self.crear_campesino('campesino_thingspeak')
+        Sensor.objects.create(
+            id_campesino=campesino,
+            tipo_sensor='Humedad',
+            thingspeak_channel_id='123456',
+            thingspeak_read_api_key='clave-lectura',
+        )
+        mock_lectura.return_value = {
+            'temperatura': 24.5,
+            'humedad_ambiente': 68.0,
+            'humedad_suelo': 42.0,
+        }
+        mock_diagnostico.return_value = ({
+            'diagnostico_general': 'Cultivo estable.',
+            'estado_salud_cultivo': 'ESTABLE',
+            'receta_compost': {},
+            'recomendaciones_inmediatas': [],
+            'alerta_plagas': 'NINGUNA',
+        }, 'LOCAL')
+        self.client.force_authenticate(user)
+
+        respuesta = self.client.post(
+            reverse('ia_diagnostico_cultivo'),
+            {
+                'tipo_cultivo': 'Tomate',
+                'fase_cultivo': 'Crecimiento',
+                'area_cultivo_m2': 20,
+                'origen_datos': 'SENSOR',
+                'ph_suelo': 6.5,
+            },
+            format='json',
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK, respuesta.data)
+        mock_lectura.assert_called_once_with('123456', 'clave-lectura')
+        datos_entrada = RecomendacionIa.objects.get(campesino=perfil).datos_entrada
+        self.assertEqual(datos_entrada['humedad_suelo'], 42.0)
+
     def test_campesino_solicita_residuo_y_queda_pendiente_para_alcaldia(self):
         user, perfil = self.crear_usuario('campesino_residuo', 'Campesino')
         campesino = Campesino.objects.create(id_usuario=perfil)
@@ -380,3 +425,27 @@ class SensoresPropiosTests(APITestCase):
         self.assertTrue(user.is_active)
         self.assertEqual(perfil.estado_cuenta, 'aprobado')
         self.assertEqual(len(mail.outbox), 1)
+
+
+class ThingSpeakServiceTests(APITestCase):
+    @patch('app_smart.services.thingspeak.requests.get')
+    def test_ultima_lectura_incluye_humedad_suelo_del_field3(self, mock_get):
+        respuesta = mock_get.return_value
+        respuesta.json.return_value = {
+            'field1': '24.5',
+            'field2': '68.0',
+            'field3': '42',
+        }
+
+        lectura = obtener_ultima_lectura_thingspeak('123456', 'clave-lectura')
+
+        self.assertEqual(lectura, {
+            'temperatura': 24.5,
+            'humedad_ambiente': 68.0,
+            'humedad_suelo': 42.0,
+        })
+        mock_get.assert_called_once_with(
+            'https://api.thingspeak.com/channels/123456/feeds/last.json',
+            params={'api_key': 'clave-lectura'},
+            timeout=8,
+        )

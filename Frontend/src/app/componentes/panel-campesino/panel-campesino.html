@@ -48,9 +48,10 @@
           <input type="number" min="0.01" step="0.01" [(ngModel)]="formularioDiagnostico.area_cultivo_m2" name="areaCultivo" required>
         </label>
 
-        <p class="muted form-grid-full">@if (formularioDiagnostico.origen_datos === 'SENSOR') { La temperatura y la humedad ambiental mostradas se actualizan desde la última lectura de tu canal de ThingSpeak. } @else { Ingresa las condiciones que conozcas para un diagnóstico más preciso. }</p>
+        <p class="muted form-grid-full">@if (formularioDiagnostico.origen_datos === 'SENSOR') { La temperatura, la humedad ambiental y la humedad del suelo se actualizan desde la última lectura de tu canal de ThingSpeak. } @else { Ingresa las condiciones que conozcas para un diagnóstico más preciso. }</p>
         <label>Temperatura (°C)<input type="number" step="0.1" [(ngModel)]="formularioDiagnostico.temperatura" name="temperatura" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
         <label>Humedad ambiental (%)<input type="number" min="0" max="100" step="0.1" [(ngModel)]="formularioDiagnostico.humedad_ambiente" name="humedadAmbiente" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
+        <label>Humedad del suelo (%)<input type="number" min="0" max="100" step="0.1" [(ngModel)]="formularioDiagnostico.humedad_suelo" name="humedadSuelo" [disabled]="formularioDiagnostico.origen_datos !== 'MANUAL'"></label>
         <label>pH del suelo<input type="number" min="0" max="14" step="0.1" [(ngModel)]="formularioDiagnostico.ph_suelo" name="phSuelo"></label>
         <label class="form-grid-full">Observaciones visuales
           <textarea rows="3" [(ngModel)]="formularioDiagnostico.observaciones_visuales" name="observaciones" placeholder="Ej.: hojas amarillas, tierra muy seca"></textarea>

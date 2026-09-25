@@ -45,6 +45,7 @@ export class PanelCampesinoComponent implements OnInit {
     origen_datos: 'SENSOR' as 'SENSOR' | 'MANUAL',
     temperatura: null as number | null,
     humedad_ambiente: null as number | null,
+    humedad_suelo: null as number | null,
     ph_suelo: null as number | null,
     observaciones_visuales: '',
     latitud: null as number | null,
@@ -179,12 +180,14 @@ export class PanelCampesinoComponent implements OnInit {
       next: (lectura) => {
         this.formularioDiagnostico.temperatura = lectura.temperatura;
         this.formularioDiagnostico.humedad_ambiente = lectura.humedad_ambiente;
+        this.formularioDiagnostico.humedad_suelo = lectura.humedad_suelo;
         this.mensajeDiagnostico = '';
         this.cdr.detectChanges();
       },
       error: (error) => {
         this.formularioDiagnostico.temperatura = null;
         this.formularioDiagnostico.humedad_ambiente = null;
+        this.formularioDiagnostico.humedad_suelo = null;
         this.mensajeDiagnostico = this.obtenerMensajeError(
           error,
           'No se pudo obtener la última medición de ThingSpeak.'
@@ -211,6 +214,7 @@ export class PanelCampesinoComponent implements OnInit {
     if (datosDiagnostico.origen_datos === 'SENSOR') {
       datosDiagnostico.temperatura = null;
       datosDiagnostico.humedad_ambiente = null;
+      datosDiagnostico.humedad_suelo = null;
     }
     this.crud.diagnosticarCultivo(datosDiagnostico).pipe(timeout(40000)).subscribe({
       next: (resultado) => {

@@ -77,7 +77,7 @@ class DiagnosticoCultivoSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs.get('origen_datos') == 'SENSOR':
-            campos_manuales = ('temperatura', 'humedad_ambiente')
+            campos_manuales = ('temperatura', 'humedad_ambiente', 'humedad_suelo')
             enviados = [campo for campo in campos_manuales if attrs.get(campo) is not None]
             if enviados:
                 raise serializers.ValidationError({
